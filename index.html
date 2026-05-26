@@ -860,7 +860,8 @@ async function addAdminNotification(icon,cls,title,desc){
 // ══ NAVEGAÇÃO ══
 function goHome(){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  document.getElementById('screen-home').classList.add('active');
+  document.getElementById('screen-painel-login').classList.add('active');
+  currentTherapist=null;
 }
 
 function goToTriagem(tipo){
@@ -1000,10 +1001,67 @@ function openTherapistLogin(){document.getElementById('modal-t-login').classList
 async function confirmarLoginT(){
   const user=document.getElementById('t-login-user').value.trim().toLowerCase(),pass=document.getElementById('t-login-pass').value;
   const t=therapists.find(x=>x.username.toLowerCase()===user&&x.password===pass);
-  if(t){currentTherapist=t;saveSession({type:'therapist',id:t.id,username:t.username,password:t.password});closeOverlay('modal-t-login');updateTherapistHeader();goToScreen('screen-therapist');}
+  if(t){
+    currentTherapist=t;
+    saveSession({type:'therapist',id:t.id,username:t.username,password:t.password});
+    closeOverlay('modal-t-login');
+    updateTherapistHeader();
+    goToScreen('screen-therapist');
+    requestNotifPermission().then(granted=>{
+      if(granted)startNotifPolling();
+      else showToast('Ative as notificações para receber alertas de novos pacientes.');
+    });
+  }
   else{document.getElementById('t-login-erro').style.display='block';document.getElementById('t-login-pass').value='';}
 }
-function logoutTherapist(){currentTherapist=null;clearSavedSession();goHome();}
+function logoutTherapist(){currentTherapist=null;clearSavedSession();stopNotifPolling();goHome();}
+
+// ══ NOTIFICAÇÕES DE DISPOSITIVO ══
+let _notifPollingInterval=null;
+let _knownPatientIds=new Set();
+
+async function requestNotifPermission(){
+  if(!('Notification' in window))return false;
+  if(Notification.permission==='granted')return true;
+  if(Notification.permission==='denied')return false;
+  const perm=await Notification.requestPermission();
+  return perm==='granted';
+}
+
+function sendDeviceNotif(title,body,icon){
+  if(Notification.permission!=='granted')return;
+  const n=new Notification(title,{body,icon:icon||'',badge:icon||'',tag:title,renotify:true});
+  n.onclick=()=>{window.focus();n.close();};
+  setTimeout(()=>n.close(),8000);
+}
+
+function startNotifPolling(){
+  if(!currentTherapist)return;
+  // Seed known IDs so we don't fire on login
+  _knownPatientIds=new Set(patients.filter(p=>p.therapistId===currentTherapist.id).map(p=>p.id));
+  stopNotifPolling();
+  _notifPollingInterval=setInterval(async()=>{
+    if(!currentTherapist)return stopNotifPolling();
+    await loadData();
+    const mine=patients.filter(p=>p.therapistId===currentTherapist.id);
+    mine.forEach(p=>{
+      if(!_knownPatientIds.has(p.id)){
+        _knownPatientIds.add(p.id);
+        sendDeviceNotif(
+          'Novo paciente: '+p.nome,
+          'Você recebeu um novo paciente para atendimento no Transformar.',
+          null
+        );
+        renderNotifPanel('t');
+        updateMetrics();
+      }
+    });
+  },30000); // checa a cada 30 segundos
+}
+
+function stopNotifPolling(){
+  if(_notifPollingInterval){clearInterval(_notifPollingInterval);_notifPollingInterval=null;}
+}
 function updateTherapistHeader(){
   if(!currentTherapist)return;
   const av=document.getElementById('t-avatar-header');
@@ -1493,7 +1551,7 @@ async function checkAutoLogin(){
   }
   if(sess.type==='therapist'){
     const t=therapists.find(x=>x.id===sess.id&&x.username===sess.username&&x.password===sess.password);
-    if(t){currentTherapist=t;updateTherapistHeader();await goToScreen('screen-therapist');showToast('Bem-vindo de volta, '+t.nome.split(' ')[0]+'! ✓');return;}
+    if(t){currentTherapist=t;updateTherapistHeader();await goToScreen('screen-therapist');showToast('Bem-vindo de volta, '+t.nome.split(' ')[0]+'! ✓');requestNotifPermission().then(granted=>{if(granted)startNotifPolling();});return;}
     // sessão inválida (terapeuta removido ou senha mudada)
     clearSavedSession();
   }
