@@ -817,10 +817,26 @@ const MONTHS=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Ago
 const WDS=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 
 // ══ DB OPS ══
-async function dbUpdate(table,id,fields){const{error}=await db.from(table).update(fields).eq('id',id);if(error)console.error(table,error);else showSaveIndicator();}
-async function dbInsert(table,data){const{data:res,error}=await db.from(table).insert(data).select().single();if(error){console.error(table,error);return null;}showSaveIndicator();return res;}
-async function dbUpsert(table,data){const{error}=await db.from(table).upsert(data);if(error)console.error(table,error);else showSaveIndicator();}
-async function dbDelete(table,id){const{error}=await db.from(table).delete().eq('id',id);if(error)console.error(table,error);else showSaveIndicator();}
+async function dbUpdate(table,id,fields){
+  const{error}=await db.from(table).update(fields).eq('id',id);
+  if(error){console.error(table,error);showToast('⚠️ Erro ao salvar ('+table+'). Tente novamente.');return false;}
+  showSaveIndicator();return true;
+}
+async function dbInsert(table,data){
+  const{data:res,error}=await db.from(table).insert(data).select().single();
+  if(error){console.error(table,error);showToast('⚠️ Erro ao salvar ('+table+'). Tente novamente.');return null;}
+  showSaveIndicator();return res;
+}
+async function dbUpsert(table,data){
+  const{error}=await db.from(table).upsert(data);
+  if(error){console.error(table,error);showToast('⚠️ Erro ao salvar. Tente novamente.');return false;}
+  showSaveIndicator();return true;
+}
+async function dbDelete(table,id){
+  const{error}=await db.from(table).delete().eq('id',id);
+  if(error){console.error(table,error);showToast('⚠️ Erro ao remover ('+table+'). Tente novamente.');return false;}
+  showSaveIndicator();return true;
+}
 
 // ══ LOAD ══
 function mapPatient(r){
@@ -833,19 +849,20 @@ function mapPatient(r){
 async function loadData(){
   showGlobalLoading(true);
   try{
-    const[pRes,tRes,aRes,nRes,cRes]=await Promise.all([
-      db.from('fichas_triagem').select('*').order('created_at',{ascending:false}),
-      db.from('terapeutas').select('*').order('created_at',{ascending:false}),
-      db.from('agendamentos').select('*').order('date',{ascending:true}),
-      db.from('admin_notificacoes').select('*').order('created_at',{ascending:false}),
-      db.from('fichas_casal').select('*').order('created_at',{ascending:false})
+    const safe=async(query,fallback=[])=>{try{const r=await query;if(r.error)console.error('loadData:',r.error);return r.data||fallback;}catch(e){console.error('loadData catch:',e);return fallback;}};
+    const[pData,tData,aData,nData,cData]=await Promise.all([
+      safe(db.from('fichas_triagem').select('*').order('created_at',{ascending:false})),
+      safe(db.from('terapeutas').select('*').order('created_at',{ascending:false})),
+      safe(db.from('agendamentos').select('*').order('date',{ascending:true})),
+      safe(db.from('admin_notificacoes').select('*').order('created_at',{ascending:false})),
+      safe(db.from('fichas_casal').select('*').order('created_at',{ascending:false}))
     ]);
-    patients=(pRes.data||[]).map(mapPatient);
-    therapists=tRes.data||[];
-    appointments=aRes.data||[];
-    adminNotifications=(nRes.data||[]).map(n=>({...n,desc:n.description}));
-    currentCasais=cRes.data||[];
-  }catch(e){console.error('Erro ao carregar:',e);showToast('Erro ao conectar com Supabase.');}
+    patients=pData.map(mapPatient);
+    therapists=tData;
+    appointments=aData;
+    adminNotifications=nData.map(n=>({...n,desc:n.description}));
+    currentCasais=cData;
+  }catch(e){console.error('Erro crítico ao carregar:',e);showToast('Erro ao conectar com Supabase.');}
   finally{showGlobalLoading(false);}
 }
 
@@ -1264,9 +1281,12 @@ async function assignPatient(){
   if(!pid||!tid){showToast('Selecione paciente e terapeuta.');return;}
   const p=patients.find(x=>x.id===pid);
   const t=therapists.find(x=>x.id===tid);
-  if(p){p.therapistId=tid;await dbUpdate('fichas_triagem',p.id,{therapistId:tid});}
-  if(p&&t){await addAdminNotification('user','ni-green','Paciente atribuído a '+t.nome,p.nome+' foi encaminhado(a) para '+t.nome+'.');}
-  closeOverlay('modal-assign');refreshAdmin();showToast('Paciente atribuído!');
+  if(!p){showToast('Paciente não encontrado.');return;}
+  const ok=await dbUpdate('fichas_triagem',p.id,{therapistId:tid});
+  if(!ok)return;
+  p.therapistId=tid;
+  if(t){await addAdminNotification('user','ni-green','Paciente atribuído a '+t.nome,p.nome+' foi encaminhado(a) para '+t.nome+'.');}
+  closeOverlay('modal-assign');refreshAdmin();showToast('✓ Paciente atribuído a '+(t?t.nome:'terapeuta')+'!');
 }
 function confirmReset(){document.getElementById('modal-reset').classList.add('open');}
 async function resetAll(){
@@ -1387,10 +1407,10 @@ function renderTherapistCards(){
     +'</div><div class="pcf">'+btns+'</div></div>';
   }).join('');
 }
-async function changeSessoes(id,delta){const p=patients.find(x=>x.id===id);if(!p)return;const n=Math.min(6,Math.max(0,p.sessoes+delta));if(n===p.sessoes)return;p.sessoes=n;if(n>=6&&p.status!=='finalizado')p.status='finalizado';await dbUpdate('fichas_triagem',id,{sessoes:n,status:p.status});renderTherapistCards();updateMetrics();showToast(delta>0?'Sessão '+n+'/6 registrada!':'Sessão removida ('+n+'/6)');}
-async function setStatus(id,s){const p=patients.find(x=>x.id===id);if(!p)return;p.status=s;await dbUpdate('fichas_triagem',id,{status:s});renderTherapistCards();updateMetrics();showToast('Status atualizado!');}
-async function setStatusAdmin(id,s){const p=patients.find(x=>x.id===id);if(!p)return;p.status=s;await dbUpdate('fichas_triagem',id,{status:s});applyFilters();updateMetrics();showToast('Status atualizado!');}
-async function updateDev(id,v,n){const p=patients.find(x=>x.id===id);if(!p)return;p.devolutiva=v;if(!p.devolutivas)p.devolutivas={};if(n)p.devolutivas[n]=v;await dbUpdate('fichas_triagem',id,{devolutiva:v,devolutivas:p.devolutivas});}
+async function changeSessoes(id,delta){const p=patients.find(x=>x.id===id);if(!p)return;const n=Math.min(6,Math.max(0,p.sessoes+delta));if(n===p.sessoes)return;p.sessoes=n;if(n>=6&&p.status!=='finalizado')p.status='finalizado';const ok=await dbUpdate('fichas_triagem',id,{sessoes:n,status:p.status});if(ok){renderTherapistCards();updateMetrics();showToast(delta>0?'✓ Sessão '+n+'/6 registrada!':'Sessão removida ('+n+'/6)');}}
+async function setStatus(id,s){const p=patients.find(x=>x.id===id);if(!p)return;p.status=s;const ok=await dbUpdate('fichas_triagem',id,{status:s});if(ok){renderTherapistCards();updateMetrics();showToast('✓ Status atualizado!');}}
+async function setStatusAdmin(id,s){const p=patients.find(x=>x.id===id);if(!p)return;p.status=s;const ok=await dbUpdate('fichas_triagem',id,{status:s});if(ok){applyFilters();updateMetrics();showToast('✓ Status atualizado!');}}
+async function updateDev(id,v,n){const p=patients.find(x=>x.id===id);if(!p)return;p.devolutiva=v;if(!p.devolutivas)p.devolutivas={};if(n)p.devolutivas[String(n)]=v;const ok=await dbUpdate('fichas_triagem',id,{devolutiva:v,devolutivas:p.devolutivas});if(ok)showToast('✓ Devolutiva salva!');}
 function renderObsList(){const c=document.getElementById('obs-list');if(!c)return;const mine=myPatients();if(!mine.length){c.innerHTML='<p style="color:var(--text3);font-size:.82rem">Nenhum paciente atribuído.</p>';return;}c.innerHTML=mine.map(p=>'<div><div style="font-weight:600;font-size:.86rem;margin-bottom:6px;color:var(--text)">'+p.nome+' <span style="font-weight:400;color:var(--text2);font-size:.74rem">— '+p.tipo+'</span></div><textarea style="width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:8px;padding:9px 11px;font-size:.8rem;resize:vertical;min-height:64px;outline:none;transition:border-color .2s" onfocus="this.style.borderColor=\'var(--blue)\'" onblur="this.style.borderColor=\'var(--border2)\'" onchange="updateObs(\''+p.id+'\',this.value)">'+p.obs+'</textarea></div>').join('');}
 async function updateObs(id,v){const p=patients.find(x=>x.id===id);if(p){p.obs=v;await dbUpdate('fichas_triagem',id,{obs:v});}}
 
