@@ -1365,7 +1365,7 @@ function renderAdminTable(list,q){
     const bar='<div style="display:flex;align-items:center;gap:5px"><span style="font-size:.76rem;font-weight:600;color:var(--text)">'+p.sessoes+'/6</span><div style="flex:1;height:3px;background:var(--bg4);border-radius:50px;min-width:32px"><div style="width:'+Math.round(p.sessoes/6*100)+'%;height:100%;border-radius:50px;background:var(--grad)"></div></div></div>';
     const statusBtns='<div style="display:flex;gap:3px;margin-top:5px">'+['espera','andamento','pausado','finalizado'].map(s=>'<button class="sbt'+(p.status===s?' '+bc[s]:'')+'" title="'+(s==='espera'?'Espera':s==='andamento'?'Em andamento':s==='pausado'?'Pausado':'Finalizado')+'" onclick="setStatusAdmin(\''+p.id+'\',\''+s+'\')" style="flex:none;width:24px;height:24px;font-size:.62rem;padding:0">'+sl[s]+'</button>').join('')+'</div>';
     const statusCell='<div style="display:inline-flex;align-items:center;gap:6px"><div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:'+sc[p.status||'espera']+'"></div>'+statusBadge(p.status)+'</div>'+statusBtns;
-    return'<tr><td><strong>'+p.nome+'</strong><br><span style="font-size:.7rem;color:var(--text3)">'+p.tipo+'</span></td><td>'+(t?t.nome:'<span style="color:var(--text3);font-size:.76rem">Não atribuído</span>')+'</td><td style="min-width:80px">'+bar+'</td><td style="min-width:130px">'+statusCell+'</td><td><button class="link-btn" onclick="openFicha(\''+p.id+'\')">Ficha</button> <button class="link-btn" style="color:var(--teal)" onclick="openAssignFor(\''+p.id+'\')">Atribuir</button> <button class="link-btn" style="color:var(--red)" onclick="deleteFichaById(\''+p.id+'\')">Deletar</button></td></tr>';
+    return'<tr><td><strong>'+p.nome+'</strong><br><span style="font-size:.7rem;color:var(--text3)">'+p.tipo+'</span></td><td>'+(t?t.nome:'<span style="color:var(--text3);font-size:.76rem">Não atribuído</span>')+'</td><td style="min-width:80px">'+bar+'</td><td style="min-width:130px">'+statusCell+'</td><td><button class="link-btn" onclick="openFicha(\''+p.id+'\')">Ficha</button> <button class="link-btn" style="color:var(--teal)" onclick="openAssignFor(\''+p.id+'\')">Atribuir</button></td></tr>';
   }).join('');
 }
 function renderFichasTable(list){
@@ -1375,7 +1375,7 @@ function renderFichasTable(list){
     const t=therapists.find(x=>x.id===p.therapistId);
     const pref=p.preferenciaT||'—';
     const prefColor=pref!=='—'&&pref!=='Sem preferência'?'color:var(--teal)':'color:var(--text3)';
-    return'<tr><td><strong>'+p.nome+'</strong></td><td>'+p.tipo+'</td><td>'+p.data+'</td><td>'+(p.sintomas||[]).slice(0,3).join(', ')+'</td><td style="font-size:.76rem;max-width:160px"><span style="'+prefColor+'">'+pref+'</span></td><td>'+(t?t.nome:'—')+'</td><td><button class="link-btn" onclick="openFicha(\''+p.id+'\')">Ver</button> <button class="link-btn" style="color:var(--red)" onclick="deleteFichaById(\''+p.id+'\')">Deletar</button></td></tr>';
+    return'<tr><td><strong>'+p.nome+'</strong></td><td>'+p.tipo+'</td><td>'+p.data+'</td><td>'+(p.sintomas||[]).slice(0,3).join(', ')+'</td><td style="font-size:.76rem;max-width:160px"><span style="'+prefColor+'">'+pref+'</span></td><td>'+(t?t.nome:'—')+'</td><td><button class="link-btn" onclick="openFicha(\''+p.id+'\')">Ver</button></td></tr>';
   }).join('');
 }
 function filterFichasTable(v){renderFichasTable(patients.filter(p=>p.nome.toLowerCase().includes(v.toLowerCase())));}
