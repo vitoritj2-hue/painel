@@ -409,7 +409,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
 
     <div class="page active" id="page-admin-dashboard">
       <div class="page-title">Dashboard</div>
-      <div class="reset-banner"><span><span class="sync-badge">● Supabase</span></span><div style="display:flex;gap:8px"><button class="btn-secondary" style="font-size:.76rem;padding:6px 14px" onclick="refreshAdmin()">↻ Sincronizar</button><button class="btn-danger" onclick="confirmReset()">Limpar tudo</button></div></div>
+      <div class="reset-banner"><span><span class="sync-badge">● Supabase</span></span><div style="display:flex;gap:8px"><button class="btn-secondary" style="font-size:.76rem;padding:6px 14px" onclick="refreshAdmin()">↻ Sincronizar</button></div></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
         <!-- coluna esquerda: volumes -->
         <div style="display:flex;flex-direction:column;gap:10px">
@@ -728,6 +728,9 @@ tr:hover td{background:rgba(255,255,255,.015)}
 <div class="modal-overlay" id="modal-ficha" onclick="if(event.target===this)closeOverlay('modal-ficha')"><div class="modal">
   <div class="modal-header"><h3 id="mf-name">Ficha</h3><button class="modal-close" onclick="closeOverlay('modal-ficha')">✕</button></div>
   <div class="modal-body" id="mf-body"></div>
+  <div style="padding:16px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end">
+    <button class="btn-danger" id="mf-delete-btn" onclick="deleteFicha()">🗑 Deletar ficha</button>
+  </div>
 </div></div>
 
 <div class="modal-overlay" id="modal-casal" onclick="if(event.target===this)closeOverlay('modal-casal')"><div class="modal">
@@ -1362,7 +1365,7 @@ function renderAdminTable(list,q){
     const bar='<div style="display:flex;align-items:center;gap:5px"><span style="font-size:.76rem;font-weight:600;color:var(--text)">'+p.sessoes+'/6</span><div style="flex:1;height:3px;background:var(--bg4);border-radius:50px;min-width:32px"><div style="width:'+Math.round(p.sessoes/6*100)+'%;height:100%;border-radius:50px;background:var(--grad)"></div></div></div>';
     const statusBtns='<div style="display:flex;gap:3px;margin-top:5px">'+['espera','andamento','pausado','finalizado'].map(s=>'<button class="sbt'+(p.status===s?' '+bc[s]:'')+'" title="'+(s==='espera'?'Espera':s==='andamento'?'Em andamento':s==='pausado'?'Pausado':'Finalizado')+'" onclick="setStatusAdmin(\''+p.id+'\',\''+s+'\')" style="flex:none;width:24px;height:24px;font-size:.62rem;padding:0">'+sl[s]+'</button>').join('')+'</div>';
     const statusCell='<div style="display:inline-flex;align-items:center;gap:6px"><div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:'+sc[p.status||'espera']+'"></div>'+statusBadge(p.status)+'</div>'+statusBtns;
-    return'<tr><td><strong>'+p.nome+'</strong><br><span style="font-size:.7rem;color:var(--text3)">'+p.tipo+'</span></td><td>'+(t?t.nome:'<span style="color:var(--text3);font-size:.76rem">Não atribuído</span>')+'</td><td style="min-width:80px">'+bar+'</td><td style="min-width:130px">'+statusCell+'</td><td><button class="link-btn" onclick="openFicha(\''+p.id+'\')">Ficha</button> <button class="link-btn" style="color:var(--teal)" onclick="openAssignFor(\''+p.id+'\')">Atribuir</button></td></tr>';
+    return'<tr><td><strong>'+p.nome+'</strong><br><span style="font-size:.7rem;color:var(--text3)">'+p.tipo+'</span></td><td>'+(t?t.nome:'<span style="color:var(--text3);font-size:.76rem">Não atribuído</span>')+'</td><td style="min-width:80px">'+bar+'</td><td style="min-width:130px">'+statusCell+'</td><td><button class="link-btn" onclick="openFicha(\''+p.id+'\')">Ficha</button> <button class="link-btn" style="color:var(--teal)" onclick="openAssignFor(\''+p.id+'\')">Atribuir</button> <button class="link-btn" style="color:var(--red)" onclick="deleteFichaById(\''+p.id+'\')">Deletar</button></td></tr>';
   }).join('');
 }
 function renderFichasTable(list){
@@ -1372,7 +1375,7 @@ function renderFichasTable(list){
     const t=therapists.find(x=>x.id===p.therapistId);
     const pref=p.preferenciaT||'—';
     const prefColor=pref!=='—'&&pref!=='Sem preferência'?'color:var(--teal)':'color:var(--text3)';
-    return'<tr><td><strong>'+p.nome+'</strong></td><td>'+p.tipo+'</td><td>'+p.data+'</td><td>'+(p.sintomas||[]).slice(0,3).join(', ')+'</td><td style="font-size:.76rem;max-width:160px"><span style="'+prefColor+'">'+pref+'</span></td><td>'+(t?t.nome:'—')+'</td><td><button class="link-btn" onclick="openFicha(\''+p.id+'\')">Ver</button></td></tr>';
+    return'<tr><td><strong>'+p.nome+'</strong></td><td>'+p.tipo+'</td><td>'+p.data+'</td><td>'+(p.sintomas||[]).slice(0,3).join(', ')+'</td><td style="font-size:.76rem;max-width:160px"><span style="'+prefColor+'">'+pref+'</span></td><td>'+(t?t.nome:'—')+'</td><td><button class="link-btn" onclick="openFicha(\''+p.id+'\')">Ver</button> <button class="link-btn" style="color:var(--red)" onclick="deleteFichaById(\''+p.id+'\')">Deletar</button></td></tr>';
   }).join('');
 }
 function filterFichasTable(v){renderFichasTable(patients.filter(p=>p.nome.toLowerCase().includes(v.toLowerCase())));}
@@ -1389,6 +1392,29 @@ function renderCasaisTable(list){
   }).join('');
 }
 function filterCasaisTable(v){renderCasaisTable(currentCasais.filter(c=>(c.p1_nome||'').toLowerCase().includes(v.toLowerCase())||(c.p2_nome||'').toLowerCase().includes(v.toLowerCase())));}
+async function deleteFicha(){
+  if(!_currentFichaId){return;}
+  const p=patients.find(x=>x.id===_currentFichaId);
+  if(!p){return;}
+  if(!confirm('Deletar a ficha de '+p.nome+'? Esta ação não pode ser desfeita.'))return;
+  const ok=await dbDelete('fichas_triagem',_currentFichaId);
+  if(!ok)return;
+  patients=patients.filter(x=>x.id!==_currentFichaId);
+  _currentFichaId=null;
+  closeOverlay('modal-ficha');
+  refreshAdmin();
+  showToast('Ficha deletada.');
+}
+async function deleteFichaById(id){
+  const p=patients.find(x=>x.id===id);
+  if(!p){return;}
+  if(!confirm('Deletar a ficha de '+p.nome+'? Esta ação não pode ser desfeita.'))return;
+  const ok=await dbDelete('fichas_triagem',id);
+  if(!ok)return;
+  patients=patients.filter(x=>x.id!==id);
+  refreshAdmin();
+  showToast('Ficha deletada.');
+}
 function openFichaCasal(id){
   const c=currentCasais.find(x=>x.id===id);if(!c)return;
   const t=therapists.find(x=>x.id===c.therapistId);
@@ -1398,7 +1424,9 @@ function openFichaCasal(id){
   document.getElementById('mc-body').innerHTML=rows.map(([k,v])=>'<div class="detail-row"><span class="dk">'+k+'</span><span class="dv">'+v+'</span></div>').join('');
   document.getElementById('modal-casal').classList.add('open');
 }
+let _currentFichaId=null;
 function openFicha(id){
+  _currentFichaId=id;
   const p=patients.find(x=>x.id===id);if(!p)return;const t=therapists.find(x=>x.id===p.therapistId);
   document.getElementById('mf-name').textContent=p.nome;
   const rows=p.tipo==='Adulto'?[['Tipo',p.tipo],['Entrada',p.data],['Sexo',p.sexo||'—'],['CPF',p.cpf||'—'],['Telefone',p.tel],['E-mail',p.email||'—'],['Cidade',p.cidade||'—'],['Queixa',p.queixa],['Sintomas',(p.sintomas||[]).join(', ')||'—'],['Terapia ant.',p.terapia||'—'],['Renda',p.renda||'—'],['Motivação',p.motivacao||'—'],['Expectativa',p.expectativa||'—'],['Pref. Terapeuta',p.preferenciaT||'—'],['Terapeuta',t?t.nome:'Não atribuído'],['Status',p.status],['Sessões',p.sessoes+'/6']]:[['Tipo',p.tipo],['Entrada',p.data],['Telefone',p.tel],['E-mail',p.email||'—'],['Cidade',p.cidade||'—'],['Responsável',(p.resp||'—')+' ('+p.parent+')'],['Queixa',p.queixa],['Sintomas',(p.sintomas||[]).join(', ')||'—'],['Renda',p.renda||'—'],['Pref. Terapeuta',p.preferenciaT||'—'],['Terapeuta',t?t.nome:'Não atribuído'],['Status',p.status],['Sessões',p.sessoes+'/6']];
@@ -1659,4 +1687,4 @@ function exportContractPDF(scope){const pfx=scope==='admin'?'ac':'tc';const nome
 
 </script>
 </body>
-</html> 
+</html>
