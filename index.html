@@ -410,13 +410,20 @@ tr:hover td{background:rgba(255,255,255,.015)}
     <div class="page active" id="page-admin-dashboard">
       <div class="page-title">Dashboard</div>
       <div class="reset-banner"><span><span class="sync-badge">● Supabase</span></span><div style="display:flex;gap:8px"><button class="btn-secondary" style="font-size:.76rem;padding:6px 14px" onclick="refreshAdmin()">↻ Sincronizar</button><button class="btn-danger" onclick="confirmReset()">Limpar tudo</button></div></div>
-      <div class="metrics-row">
-        <div class="metric-card"><div class="metric-label">Pacientes</div><div class="metric-value" id="m-total">0</div><div class="metric-accent"></div></div>
-        <div class="metric-card"><div class="metric-label">Casais</div><div class="metric-value" id="m-casais">0</div><div class="metric-accent"></div></div>
-        <div class="metric-card"><div class="metric-label" style="color:var(--yellow)">Em espera</div><div class="metric-value" id="m-espera">0</div><div class="metric-accent"></div></div>
-        <div class="metric-card"><div class="metric-label" style="color:var(--blue)">Em andamento</div><div class="metric-value" id="m-andamento">0</div><div class="metric-accent"></div></div>
-        <div class="metric-card"><div class="metric-label" style="color:var(--teal)">Finalizados</div><div class="metric-value" id="m-final">0</div><div class="metric-accent"></div></div>
-        <div class="metric-card"><div class="metric-label">Terapeutas</div><div class="metric-value" id="m-terapeutas">0</div><div class="metric-accent"></div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
+        <!-- coluna esquerda: volumes -->
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div class="metric-card" style="flex:1"><div class="metric-label">Pacientes individuais</div><div class="metric-value" id="m-total">0</div><div class="metric-accent"></div></div>
+          <div class="metric-card" style="flex:1"><div class="metric-label">Casais</div><div class="metric-value" id="m-casais">0</div><div class="metric-accent"></div></div>
+          <div class="metric-card" style="flex:1"><div class="metric-label">Terapeutas</div><div class="metric-value" id="m-terapeutas">0</div><div class="metric-accent"></div></div>
+        </div>
+        <!-- coluna direita: status -->
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div class="metric-card" style="flex:1"><div class="metric-label" style="color:var(--yellow)">Em espera</div><div class="metric-value" id="m-espera">0</div><div class="metric-accent" style="background:var(--yellow)"></div></div>
+          <div class="metric-card" style="flex:1"><div class="metric-label" style="color:var(--blue)">Em andamento</div><div class="metric-value" id="m-andamento">0</div><div class="metric-accent"></div></div>
+          <div class="metric-card" style="flex:1"><div class="metric-label" style="color:var(--teal)">Finalizados</div><div class="metric-value" id="m-final">0</div><div class="metric-accent"></div></div>
+          <div class="metric-card" style="flex:1"><div class="metric-label" style="color:var(--red)">Pausados</div><div class="metric-value" id="m-pausado">0</div><div class="metric-accent" style="background:var(--red)"></div></div>
+        </div>
       </div>
       <div class="search-bar">
         <div class="search-row">
@@ -1255,16 +1262,26 @@ function openAssign(){
   document.getElementById('modal-assign').classList.add('open');
 }
 function openAssignFor(pid){openAssign();const p=patients.find(x=>x.id===pid);if(p)selectAssignItem('patient',p.id,p.nome);}
+function openAssignForCasal(cid){openAssign();const c=currentCasais.find(x=>x.id===cid);if(c)selectAssignItem('patient',c.id,c.p1_nome+' & '+c.p2_nome);}
 function filterAssignList(type){renderAssignList(type,document.getElementById('assign-'+type+'-search').value);}
 function renderAssignList(type,q){
-  const list=document.getElementById('assign-'+type+'-list'),items=type==='patient'?patients:therapists;
+  const list=document.getElementById('assign-'+type+'-list');
+  let items;
+  if(type==='patient'){
+    // Inclui fichas individuais/infantil e fichas de casal (com nome composto)
+    const casaisComNome=currentCasais.map(c=>({...c,nome:c.p1_nome+' & '+c.p2_nome,_isCasal:true}));
+    items=[...patients,...casaisComNome];
+  } else {
+    items=therapists;
+  }
   const filtered=q?items.filter(x=>x.nome.toLowerCase().includes(q.toLowerCase())):items;
   if(!filtered.length){list.innerHTML='<div style="padding:12px;text-align:center;color:var(--text3);font-size:.78rem">Nenhum resultado.</div>';return;}
   list.innerHTML=filtered.slice(0,20).map(x=>{
+    const tipoPill=x._isCasal?'<span style="font-size:.6rem;background:rgba(45,212,170,.1);color:var(--teal);border-radius:50px;padding:1px 7px;border:1px solid rgba(45,212,170,.2);margin-right:4px">Casal</span>':'';
     const sub=type==='patient'?(x.therapistId?(therapists.find(t=>t.id===x.therapistId)?.nome||'Atribuído'):'Sem terapeuta'):(x.esp||'Terapeuta');
     const badge=type==='patient'&&x.therapistId?'<span style="font-size:.6rem;background:rgba(240,180,41,.1);color:var(--yellow);border-radius:50px;padding:1px 7px;border:1px solid rgba(240,180,41,.2)">Atribuído</span>':'';
     const safeNome=x.nome.replace(/'/g,"\\'");
-    return'<div onclick="selectAssignItem(\''+type+'\',\''+x.id+'\',\''+safeNome+'\')" style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:.82rem;transition:background .15s" onmouseover="this.style.background=\'var(--bg4)\'" onmouseout="this.style.background=\'none\'"><div><div style="color:var(--text);font-weight:500">'+x.nome+'</div><div style="font-size:.68rem;color:var(--text3);margin-top:1px">'+sub+'</div></div>'+badge+'</div>';
+    return'<div onclick="selectAssignItem(\''+type+'\',\''+x.id+'\',\''+safeNome+'\')" style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:.82rem;transition:background .15s" onmouseover="this.style.background=\'var(--bg4)\'" onmouseout="this.style.background=\'none\'"><div><div style="color:var(--text);font-weight:500">'+tipoPill+x.nome+'</div><div style="font-size:.68rem;color:var(--text3);margin-top:1px">'+sub+'</div></div>'+badge+'</div>';
   }).join('');
   if(filtered.length>20)list.innerHTML+='<div style="padding:8px 12px;text-align:center;font-size:.7rem;color:var(--text3)">+'+(filtered.length-20)+' resultados — refine a busca</div>';
 }
@@ -1279,9 +1296,18 @@ function clearAssignItem(type){document.getElementById('assign-'+type+'-id').val
 async function assignPatient(){
   const pid=document.getElementById('assign-patient-id').value,tid=document.getElementById('assign-therapist-id').value;
   if(!pid||!tid){showToast('Selecione paciente e terapeuta.');return;}
-  const p=patients.find(x=>x.id===pid);
   const t=therapists.find(x=>x.id===tid);
-  if(!p){showToast('Paciente não encontrado.');return;}
+  // Verifica se é ficha de casal
+  const casal=currentCasais.find(x=>x.id===pid);
+  if(casal){
+    const ok=await dbUpdate('fichas_casal',casal.id,{therapistId:tid});
+    if(!ok)return;
+    casal.therapistId=tid;
+    if(t){await addAdminNotification('user','ni-green','Casal atribuído a '+t.nome,(casal.p1_nome+' & '+casal.p2_nome)+' foi encaminhado(a) para '+t.nome+'.');}
+    closeOverlay('modal-assign');renderCasaisTable(currentCasais);refreshAdmin();showToast('✓ Casal atribuído a '+(t?t.nome:'terapeuta')+'!');
+    return;
+  }
+  const p=patients.find(x=>x.id===pid);
   const ok=await dbUpdate('fichas_triagem',p.id,{therapistId:tid});
   if(!ok)return;
   p.therapistId=tid;
@@ -1310,6 +1336,7 @@ function updateMetrics(){
   document.getElementById('m-espera').textContent=patients.filter(p=>p.status==='espera').length;
   document.getElementById('m-andamento').textContent=patients.filter(p=>p.status==='andamento').length;
   document.getElementById('m-final').textContent=patients.filter(p=>p.status==='finalizado').length;
+  document.getElementById('m-pausado').textContent=patients.filter(p=>p.status==='pausado').length;
   document.getElementById('m-terapeutas').textContent=therapists.length;
 }
 function statusBadge(s){return{espera:'<span class="sb sb-yellow"><span class="sd sd-y"></span>Espera</span>',andamento:'<span class="sb sb-blue"><span class="sd sd-b"></span>Em andamento</span>',pausado:'<span class="sb sb-red"><span class="sd sd-r"></span>Pausado</span>',finalizado:'<span class="sb sb-green"><span class="sd sd-g"></span>Finalizado</span>'}[s]||'<span class="sb sb-yellow"><span class="sd sd-y"></span>Espera</span>';}
@@ -1358,7 +1385,7 @@ function renderCasaisTable(list){
     const t=therapists.find(x=>x.id===c.therapistId);
     const data=c.created_at?new Date(c.created_at).toLocaleDateString('pt-BR'):'—';
     const cfList=Array.isArray(c.conflitos)?c.conflitos:(typeof c.conflitos==='string'?JSON.parse(c.conflitos||'[]'):[]);
-    return'<tr><td><strong>'+c.p1_nome+' & '+c.p2_nome+'</strong><br><span style="font-size:.7rem;color:var(--text3)">'+(cfList.length?'Conflitos: '+cfList.slice(0,2).join(', '):'')+'</span></td><td>'+(c.tempo_juntos||'—')+'</td><td>'+data+'</td><td>'+(c.conexao_emocional||'—')+'</td><td>'+(t?t.nome:'<span style="color:var(--text3);font-size:.76rem">Não atribuído</span>')+'</td><td><button class="link-btn" onclick="openFichaCasal(\''+c.id+'\')">Ver</button></td></tr>';
+    return'<tr><td><strong>'+c.p1_nome+' & '+c.p2_nome+'</strong><br><span style="font-size:.7rem;color:var(--text3)">'+(cfList.length?'Conflitos: '+cfList.slice(0,2).join(', '):'')+'</span></td><td>'+(c.tempo_juntos||'—')+'</td><td>'+data+'</td><td>'+(c.conexao_emocional||'—')+'</td><td>'+(t?t.nome:'<span style="color:var(--text3);font-size:.76rem">Não atribuído</span>')+'</td><td><button class="link-btn" onclick="openFichaCasal(\''+c.id+'\')">Ver</button> <button class="link-btn" style="color:var(--teal)" onclick="openAssignForCasal(\''+c.id+'\')">Atribuir</button></td></tr>';
   }).join('');
 }
 function filterCasaisTable(v){renderCasaisTable(currentCasais.filter(c=>(c.p1_nome||'').toLowerCase().includes(v.toLowerCase())||(c.p2_nome||'').toLowerCase().includes(v.toLowerCase())));}
@@ -1632,4 +1659,4 @@ function exportContractPDF(scope){const pfx=scope==='admin'?'ac':'tc';const nome
 
 </script>
 </body>
-</html>
+</html> 
