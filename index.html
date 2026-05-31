@@ -1462,7 +1462,7 @@ function renderTherapistCards(){
     +'</div><div class="pcf">'+btns+'</div></div>';
   }).join('');
 }
-async function changeSessoes(id,delta){const p=patients.find(x=>x.id===id);if(!p)return;const n=Math.min(6,Math.max(0,p.sessoes+delta));if(n===p.sessoes)return;p.sessoes=n;if(n>=6&&p.status!=='finalizado')p.status='finalizado';const ok=await dbUpdate('fichas_triagem',id,{sessoes:n,status:p.status});if(ok){renderTherapistCards();updateMetrics();showToast(delta>0?'✓ Sessão '+n+'/6 registrada!':'Sessão removida ('+n+'/6)');}}
+async function changeSessoes(id,delta){const p=patients.find(x=>x.id===id);if(!p)return;const n=Math.min(6,Math.max(0,p.sessoes+delta));if(n===p.sessoes)return;p.sessoes=n;if(n>=6&&p.status!=='finalizado')p.status='finalizado';else if(n>=1&&p.status==='espera')p.status='andamento';else if(n===0&&p.status==='andamento')p.status='espera';const ok=await dbUpdate('fichas_triagem',id,{sessoes:n,status:p.status});if(ok){renderTherapistCards();updateMetrics();showToast(delta>0?'✓ Sessão '+n+'/6 registrada! Status: '+(p.status==='andamento'?'Em andamento':p.status):'Sessão removida ('+n+'/6)');}}
 async function setStatus(id,s){const p=patients.find(x=>x.id===id);if(!p)return;p.status=s;const ok=await dbUpdate('fichas_triagem',id,{status:s});if(ok){renderTherapistCards();updateMetrics();showToast('✓ Status atualizado!');}}
 async function setStatusAdmin(id,s){const p=patients.find(x=>x.id===id);if(!p)return;p.status=s;const ok=await dbUpdate('fichas_triagem',id,{status:s});if(ok){applyFilters();updateMetrics();showToast('✓ Status atualizado!');}}
 async function updateDev(id,v,n){const p=patients.find(x=>x.id===id);if(!p)return;p.devolutiva=v;if(!p.devolutivas)p.devolutivas={};if(n)p.devolutivas[String(n)]=v;const ok=await dbUpdate('fichas_triagem',id,{devolutiva:v,devolutivas:p.devolutivas});if(ok)showToast('✓ Devolutiva salva!');}
@@ -1524,7 +1524,7 @@ async function addAppointment(){
   if(!pid){showToast('Selecione um paciente!');return;}if(!ds){showToast('Selecione um dia!');return;}
   const res=await dbInsert('agendamentos',{id:uid(),patientId:pid,date:ds,time,mode,obs});
   if(!res)return;appointments.push(res);
-  const p=patients.find(x=>x.id===pid);if(p&&p.sessoes<6){p.sessoes++;await dbUpdate('fichas_triagem',p.id,{sessoes:p.sessoes});}
+  const p=patients.find(x=>x.id===pid);if(p&&p.sessoes<6){p.sessoes++;if(p.sessoes>=1&&p.status==='espera')p.status='andamento';if(p.sessoes>=6&&p.status!=='finalizado')p.status='finalizado';await dbUpdate('fichas_triagem',p.id,{sessoes:p.sessoes,status:p.status});}
   document.getElementById('appt-obs').value='';updateMetrics();buildCal('t');showDayAgenda('t',ds);buildUpcoming('t');showToast('Sessão agendada!');
 }
 async function deleteAppointment(aid,ds){await dbDelete('agendamentos',aid);appointments=appointments.filter(a=>a.id!==aid);updateMetrics();buildCal('t');showDayAgenda('t',ds);buildUpcoming('t');showToast('Removido.');}
