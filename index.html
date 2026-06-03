@@ -1346,19 +1346,38 @@ function renderAssignList(type,q){
   if(type==='patient'){
     // Inclui fichas individuais/infantil e fichas de casal (com nome composto)
     const casaisComNome=currentCasais.map(c=>({...c,nome:c.p1_nome+' & '+c.p2_nome,_isCasal:true}));
-    items=[...patients,...casaisComNome];
+    const all=[...patients,...casaisComNome];
+    // Disponíveis primeiro, já atribuídos por último
+    items=all.slice().sort((a,b)=>{const aA=a.therapistId?1:0,bA=b.therapistId?1:0;return aA-bA;});
   } else {
     items=therapists;
   }
   const filtered=q?items.filter(x=>x.nome.toLowerCase().includes(q.toLowerCase())):items;
   if(!filtered.length){list.innerHTML='<div style="padding:12px;text-align:center;color:var(--text3);font-size:.78rem">Nenhum resultado.</div>';return;}
-  list.innerHTML=filtered.slice(0,20).map(x=>{
+  // Separador entre disponíveis e indisponíveis
+  const dispCount=filtered.filter(x=>!x.therapistId).length;
+  const indispCount=filtered.filter(x=>x.therapistId).length;
+  let html='';
+  let separatorAdded=false;
+  filtered.slice(0,20).forEach((x,i)=>{
+    const isUnavailable=type==='patient'&&!!x.therapistId;
+    // Adiciona separador antes do primeiro indisponível
+    if(type==='patient'&&isUnavailable&&!separatorAdded&&dispCount>0){
+      separatorAdded=true;
+      html+='<div style="padding:5px 12px;font-size:.6rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text3);background:var(--bg2);border-bottom:1px solid var(--border);border-top:1px solid var(--border)">Já atribuídos</div>';
+    }
     const tipoPill=x._isCasal?'<span style="font-size:.6rem;background:rgba(45,212,170,.1);color:var(--teal);border-radius:50px;padding:1px 7px;border:1px solid rgba(45,212,170,.2);margin-right:4px">Casal</span>':'';
     const sub=type==='patient'?(x.therapistId?(therapists.find(t=>t.id===x.therapistId)?.nome||'Atribuído'):'Sem terapeuta'):(x.esp||'Terapeuta');
-    const badge=type==='patient'&&x.therapistId?'<span style="font-size:.6rem;background:rgba(240,180,41,.1);color:var(--yellow);border-radius:50px;padding:1px 7px;border:1px solid rgba(240,180,41,.2)">Atribuído</span>':'';
+    const badge=isUnavailable?'<span style="font-size:.6rem;background:rgba(255,255,255,.05);color:var(--text3);border-radius:50px;padding:1px 7px;border:1px solid rgba(255,255,255,.08)">Atribuído</span>':'';
     const safeNome=x.nome.replace(/'/g,"\\'");
-    return'<div onclick="selectAssignItem(\''+type+'\',\''+x.id+'\',\''+safeNome+'\')" style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:.82rem;transition:background .15s" onmouseover="this.style.background=\'var(--bg4)\'" onmouseout="this.style.background=\'none\'"><div><div style="color:var(--text);font-weight:500">'+tipoPill+x.nome+'</div><div style="font-size:.68rem;color:var(--text3);margin-top:1px">'+sub+'</div></div>'+badge+'</div>';
-  }).join('');
+    if(isUnavailable){
+      // Item escurecido e não clicável
+      html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-bottom:1px solid var(--border);font-size:.82rem;opacity:.38;cursor:not-allowed;pointer-events:none;background:rgba(0,0,0,.18)"><div><div style="color:var(--text2);font-weight:500">'+tipoPill+x.nome+'</div><div style="font-size:.68rem;color:var(--text3);margin-top:1px">'+sub+'</div></div>'+badge+'</div>';
+    } else {
+      html+='<div onclick="selectAssignItem(\''+type+'\',\''+x.id+'\',\''+safeNome+'\')" style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:.82rem;transition:background .15s" onmouseover="this.style.background=\'var(--bg4)\'" onmouseout="this.style.background=\'none\'"><div><div style="color:var(--text);font-weight:500">'+tipoPill+x.nome+'</div><div style="font-size:.68rem;color:var(--text3);margin-top:1px">'+sub+'</div></div>'+badge+'</div>';
+    }
+  });
+  list.innerHTML=html;
   if(filtered.length>20)list.innerHTML+='<div style="padding:8px 12px;text-align:center;font-size:.7rem;color:var(--text3)">+'+(filtered.length-20)+' resultados — refine a busca</div>';
 }
 function selectAssignItem(type,id,nome){
