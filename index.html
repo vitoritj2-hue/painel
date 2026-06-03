@@ -408,7 +408,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
     <button class="tab-btn" onclick="switchTab('admin','fichas',this)">Fichas</button>
     <button class="tab-btn" onclick="switchTab('admin','casais',this);renderCasaisTable(currentCasais)">Casais</button>
     <button class="tab-btn" onclick="switchTab('admin','terapeutas',this);renderTherapistAdmin()">Terapeutas</button>
-    <button class="tab-btn" onclick="switchTab('admin','agenda',this);initCal('admin')">Agenda</button>
+    <button class="tab-btn" onclick="switchTab('admin','agenda',this);initCal('admin');populateAdminAgendaFilter()">Agenda</button>
     <button class="tab-btn" onclick="switchTab('admin','relatorio',this);renderRelatorioList('admin')">Relatórios</button>
     <button class="tab-btn" onclick="switchTab('admin','contrato',this);populateContractSelect('admin')">Contrato</button>
   </div>
@@ -501,6 +501,31 @@ tr:hover td{background:rgba(255,255,255,.015)}
 
     <div class="page" id="page-admin-agenda">
       <div class="page-title">Agenda Geral</div>
+      <div class="data-card" style="margin-bottom:16px;padding:0">
+        <div style="padding:14px 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <span style="font-size:.8rem;font-weight:600;color:var(--text2);white-space:nowrap">Visualizar agenda de:</span>
+          <div style="position:relative;flex:1;max-width:300px" id="agenda-terapeuta-wrap">
+            <div style="position:relative">
+              <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:14px;pointer-events:none">⌕</span>
+              <input type="text" id="admin-agenda-terapeuta-search" placeholder="Buscar terapeuta..." autocomplete="off"
+                oninput="filterAgendaTerapeutas(this.value)"
+                onfocus="showAgendaDropdown()"
+                onblur="setTimeout(hideAgendaDropdown,180)"
+                style="width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:8px;padding:7px 12px 7px 32px;font-size:.82rem;outline:none;transition:border-color .2s"
+                onfocusin="this.style.borderColor='var(--blue)'" onfocusout="this.style.borderColor='var(--border2)'">
+              <button id="agenda-clear-btn" onclick="clearAgendaTerapeutaFilter()" title="Limpar" style="display:none;position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;line-height:1">×</button>
+            </div>
+            <div id="agenda-terapeuta-dropdown" style="display:none;position:fixed;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.5);z-index:9999;max-height:260px;overflow-y:auto;min-width:260px">
+              <div id="agenda-terapeuta-list"></div>
+            </div>
+          </div>
+          <div id="admin-disp-info" style="display:none;background:rgba(45,212,170,.08);border:1px solid rgba(45,212,170,.25);border-radius:8px;padding:7px 14px;font-size:.76rem;color:var(--teal);flex:1"></div>
+        </div>
+        <div id="agenda-selected-badge" style="display:none;padding:0 18px 12px;display:none;align-items:center;gap:8px">
+          <span id="agenda-selected-nome" style="font-size:.8rem;font-weight:600;color:var(--text)"></span>
+          <button onclick="clearAgendaTerapeutaFilter()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:.74rem;padding:2px 6px;border-radius:5px;border:1px solid var(--border2)">✕ Limpar</button>
+        </div>
+      </div>
       <div class="cal-card"><div class="cal-nav-row"><button class="cal-arrow" id="btn-prev-admin">‹</button><span class="cal-nav-title" id="cal-admin-title"></span><button class="cal-arrow" id="btn-next-admin">›</button></div><div class="cal-weekdays" id="cal-wd-admin"></div><div class="cal-grid" id="cal-grid-admin"></div></div>
       <div class="data-card"><div class="data-card-header"><span class="data-card-title" id="admin-day-title">Selecione um dia</span></div><div id="admin-day-agenda" style="padding:14px 18px"><p style="color:var(--text3);font-size:.78rem">Clique em um dia.</p></div></div>
       <div class="data-card"><div class="data-card-header"><span class="data-card-title">Próximas Sessões</span></div><div id="admin-upcoming" style="padding:14px 18px"></div></div>
@@ -560,6 +585,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
     <button class="tab-btn" onclick="switchTab('t','obs',this)">Observações</button>
     <button class="tab-btn" onclick="switchTab('t','equipe',this);renderEquipe()">Sua Equipe</button>
     <button class="tab-btn" onclick="switchTab('t','contrato',this);populateContractSelect('t')">Contrato</button>
+    <button class="tab-btn" onclick="switchTab('t','disponibilidade',this);initDisponibilidade()">Disponibilidade</button>
   </div>
   <div class="page-content">
     <div class="page" id="page-t-perfil">
@@ -671,6 +697,46 @@ tr:hover td{background:rgba(255,255,255,.015)}
     </div>
     <div class="page" id="page-t-obs"><div class="page-title">Observações</div><div class="data-card"><div class="data-card-header"><span class="data-card-title">Por paciente</span></div><div id="obs-list" style="padding:14px 18px;display:flex;flex-direction:column;gap:14px"></div></div></div>
     <div class="page" id="page-t-equipe"><div class="page-title">Sua Equipe</div><div id="equipe-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px"></div></div>
+    <div class="page" id="page-t-disponibilidade">
+      <div class="page-title">Minha Disponibilidade</div>
+      <div class="data-card" style="margin-bottom:16px">
+        <div class="data-card-header"><span class="data-card-title">Dias disponíveis para atendimento</span><span style="font-size:.74rem;color:var(--text3)">Clique para marcar/desmarcar</span></div>
+        <div style="padding:20px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px">
+            <span style="font-size:.72rem;color:var(--text2);display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;border-radius:3px;background:rgba(45,212,170,.5);display:inline-block"></span>Disponível</span>
+            <span style="font-size:.72rem;color:var(--text2);display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;border-radius:3px;background:var(--bg3);border:1px solid var(--border2);display:inline-block"></span>Não marcado</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;text-align:center;margin-bottom:20px" id="disp-weekdays-header">
+            <div style="font-size:.68rem;font-weight:700;color:var(--text3);padding-bottom:4px">Dom</div>
+            <div style="font-size:.68rem;font-weight:700;color:var(--text3);padding-bottom:4px">Seg</div>
+            <div style="font-size:.68rem;font-weight:700;color:var(--text3);padding-bottom:4px">Ter</div>
+            <div style="font-size:.68rem;font-weight:700;color:var(--text3);padding-bottom:4px">Qua</div>
+            <div style="font-size:.68rem;font-weight:700;color:var(--text3);padding-bottom:4px">Qui</div>
+            <div style="font-size:.68rem;font-weight:700;color:var(--text3);padding-bottom:4px">Sex</div>
+            <div style="font-size:.68rem;font-weight:700;color:var(--text3);padding-bottom:4px">Sáb</div>
+          </div>
+          <div id="disp-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:20px"></div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:4px">
+            <button class="btn-secondary" onclick="limparDisponibilidade()" style="font-size:.78rem;padding:7px 16px">Limpar tudo</button>
+            <button class="btn-primary" onclick="salvarDisponibilidade()" style="font-size:.78rem;padding:7px 20px">Salvar disponibilidade</button>
+          </div>
+        </div>
+      </div>
+      <div class="data-card" style="margin-bottom:16px">
+        <div class="data-card-header"><span class="data-card-title">Horários preferidos</span></div>
+        <div style="padding:20px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+            <div class="fg"><label>Horário de início</label><input type="time" id="disp-hora-inicio" value="08:00"></div>
+            <div class="fg"><label>Horário de fim</label><input type="time" id="disp-hora-fim" value="18:00"></div>
+          </div>
+          <div class="fg" style="margin-bottom:14px">
+            <label>Observação (ex: só manhãs, intervalos de 1h, etc.)</label>
+            <textarea id="disp-obs" placeholder="Ex: Atendo somente pela manhã. Intervalo entre sessões de 1 hora." style="width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:9px;padding:10px 12px;font-size:.86rem;resize:vertical;min-height:70px;outline:none;transition:border-color .2s" onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border2)'"></textarea>
+          </div>
+          <button class="btn-primary" style="width:100%;padding:12px" onclick="salvarDisponibilidade()">Salvar</button>
+        </div>
+      </div>
+    </div>
     <div class="page" id="page-t-contrato">
       <div class="page-title">Gerar Contrato</div>
       <div class="contract-wrap">
@@ -1504,19 +1570,31 @@ function selectDay(prefix,ds){calState[prefix].selected=ds;buildCal(prefix);show
 function showDayAgenda(prefix,ds){
   const titleEl=document.getElementById(prefix==='admin'?'admin-day-title':'t-day-title'),agendaEl=document.getElementById(prefix==='admin'?'admin-day-agenda':'t-day-agenda');if(!agendaEl)return;
   if(titleEl)titleEl.textContent='Sessões em '+fmtDate(ds);
-  const mine=prefix==='t'&&currentTherapist?appointments.filter(a=>{const p=patients.find(x=>x.id===a.patientId);return p&&p.therapistId===currentTherapist.id;}):appointments;
+  let mine;
+  if(prefix==='admin'){
+    const tid=_agendaTerapeutaId||'';
+    mine=tid?appointments.filter(a=>{const p=patients.find(x=>x.id===a.patientId);return p&&p.therapistId===tid;}):appointments;
+  } else {
+    mine=currentTherapist?appointments.filter(a=>{const p=patients.find(x=>x.id===a.patientId);return p&&p.therapistId===currentTherapist.id;}):appointments;
+  }
   const apts=mine.filter(a=>a.date===ds).sort((a,b)=>a.time.localeCompare(b.time));
   if(!apts.length){agendaEl.innerHTML='<p style="color:var(--text3);font-size:.78rem">Nenhuma sessão neste dia.</p>';return;}
-  agendaEl.innerHTML=apts.map(a=>{const p=patients.find(x=>x.id===a.patientId);return'<div class="agenda-item"><div class="agenda-time">'+a.time+'</div><div class="agenda-info"><h5>'+(p?p.nome:'?')+'</h5><p>'+a.mode+(a.obs?' · '+a.obs:'')+'</p></div>'+(prefix==='t'?'<button class="agenda-delete" onclick="deleteAppointment(\''+a.id+'\',\''+ds+'\')">×</button>':'')+'</div>';}).join('');
+  agendaEl.innerHTML=apts.map(a=>{const p=patients.find(x=>x.id===a.patientId);const t=therapists.find(x=>x.id===(p&&p.therapistId));return'<div class="agenda-item"><div class="agenda-time">'+a.time+'</div><div class="agenda-info"><h5>'+(p?p.nome:'?')+'</h5><p>'+a.mode+(a.obs?' · '+a.obs:'')+(prefix==='admin'&&t?' · <span style="color:var(--text2);font-size:.72rem">'+t.nome+'</span>':'')+'</p></div>'+(prefix==='t'?'<button class="agenda-delete" onclick="deleteAppointment(\''+a.id+'\',\''+ds+'\')">×</button>':'')+'</div>';}).join('');
 }
 function buildUpcoming(prefix){
   const upEl=document.getElementById(prefix==='admin'?'admin-upcoming':'t-upcoming');if(!upEl)return;
   const now=new Date();now.setHours(0,0,0,0);const n7=new Date(now);n7.setDate(n7.getDate()+7);
-  const mine=prefix==='t'&&currentTherapist?appointments.filter(a=>{const p=patients.find(x=>x.id===a.patientId);return p&&p.therapistId===currentTherapist.id;}):appointments;
+  let mine;
+  if(prefix==='admin'){
+    const tid=_agendaTerapeutaId||'';
+    mine=tid?appointments.filter(a=>{const p=patients.find(x=>x.id===a.patientId);return p&&p.therapistId===tid;}):appointments;
+  } else {
+    mine=currentTherapist?appointments.filter(a=>{const p=patients.find(x=>x.id===a.patientId);return p&&p.therapistId===currentTherapist.id;}):appointments;
+  }
   const up=mine.filter(a=>{const d=new Date(a.date+'T00:00:00');return d>=now&&d<=n7;}).sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time));
   const ts=dateKey(today.getFullYear(),today.getMonth(),today.getDate());
   if(!up.length){upEl.innerHTML='<p style="color:var(--text3);font-size:.76rem">Nenhuma sessão nos próximos 7 dias.</p>';return;}
-  upEl.innerHTML=up.map(a=>{const p=patients.find(x=>x.id===a.patientId);return'<div class="upcoming-item"><div class="upcoming-dot" style="background:'+(a.date===ts?'var(--teal)':'var(--blue)')+'"></div><div class="upcoming-info"><h5>'+(p?p.nome:'?')+'</h5><p>'+a.time+' · '+a.mode+'</p></div><div class="upcoming-date">'+fmtDate(a.date)+'</div></div>';}).join('');
+  upEl.innerHTML=up.map(a=>{const p=patients.find(x=>x.id===a.patientId);const t=therapists.find(x=>x.id===(p&&p.therapistId));return'<div class="upcoming-item"><div class="upcoming-dot" style="background:'+(a.date===ts?'var(--teal)':'var(--blue)')+'"></div><div class="upcoming-info"><h5>'+(p?p.nome:'?')+'</h5><p>'+a.time+' · '+a.mode+(prefix==='admin'&&t?' · <span style="color:var(--text2);font-size:.72rem">'+t.nome+'</span>':'')+'</p></div><div class="upcoming-date">'+fmtDate(a.date)+'</div></div>';}).join('');
 }
 function initCal(prefix){
   if(!calState[prefix].selected)calState[prefix].selected=dateKey(today.getFullYear(),today.getMonth(),today.getDate());
@@ -1674,6 +1752,258 @@ function closeNotifPanel(scope){document.getElementById('notif-panel-'+scope).cl
 function exportCSV(){if(!patients.length){showToast('Nenhum paciente.');return;}const h=['Nome','Tipo','Sexo','Nasc.','Tel','Email','Cidade','Queixa','Sintomas','Renda','Terapeuta','Sessões','Status'];const rows=patients.map(p=>{const t=therapists.find(x=>x.id===p.therapistId);return[p.nome,p.tipo,p.sexo||'',p.nasc||'',p.tel,p.email||'',p.cidade||'','"'+p.queixa.replace(/"/g,'""')+'"','"'+(p.sintomas||[]).join(', ')+'"',p.renda||'',t?t.nome:'Não atribuído',p.sessoes+'/6',p.status];});const csv=[h,...rows].map(r=>r.join(';')).join('\n');const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='pacientes_'+new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')+'.csv';a.click();URL.revokeObjectURL(url);showToast('CSV exportado!');}
 
 function exportContractPDF(scope){const pfx=scope==='admin'?'ac':'tc';const nome=document.getElementById(pfx+'-nome')?.value||'—';const terapeuta=document.getElementById(pfx+'-terapeuta')?.value||'—';const data=document.getElementById(pfx+'-data')?.value||'';const valor=document.getElementById(pfx+'-valor')?.value||'—';const tel=document.getElementById(pfx+'-tel')?.value||'—';const email=document.getElementById(pfx+'-email')?.value||'—';const sp='Paciente / Responsável';const st=scope==='admin'?'Terapeuta':(document.getElementById('tc-sign-terapeuta')?.textContent||'Terapeuta');const df=data?data.split('-').reverse().join('/'):'___/___/______';const html='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:Georgia,serif;color:#1a1a2e;padding:40px 60px;font-size:13px}.logo-line{width:40px;height:3px;background:linear-gradient(90deg,#4f8ef7,#2dd4aa);margin:0 auto 14px;border-radius:2px}h1{text-align:center;font-size:18px;margin-bottom:4px}.sub{text-align:center;font-size:11px;color:#555;margin-bottom:2px}.sub2{text-align:center;font-size:10px;color:#4f8ef7;font-style:italic;margin-bottom:20px}.fields{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:20px 0;padding:14px;background:#f8fafc;border:1px solid #e0e8f0;border-radius:6px}.field label{font-size:9px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px}.field span{font-size:12px;font-weight:600;color:#1a1a2e;border-bottom:1px solid #cdd5e0;display:block;padding-bottom:4px}h3{font-size:12px;font-weight:700;margin:16px 0 5px;padding-left:8px;border-left:3px solid #4f8ef7}p{font-size:12px;color:#444;margin-left:8px}.sign-area{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:40px}.sign-block{text-align:center}.sign-line{border-bottom:1.5px solid #1a1a2e;margin-bottom:8px;height:44px}.sign-label{font-size:11px;color:#666}.footer{margin-top:32px;text-align:center;font-size:9px;color:#aaa;border-top:1px solid #e0e8f0;padding-top:12px}</style></head><body><div class="logo-line"></div><h1>Contrato de Prestação de Serviços Terapêuticos</h1><p class="sub">Projeto Social Transformar</p><p class="sub2">Abordagem Cristã</p><div class="fields"><div class="field"><label>Paciente</label><span>'+nome+'</span></div><div class="field"><label>Terapeuta</label><span>'+terapeuta+'</span></div><div class="field"><label>Data de Início</label><span>'+df+'</span></div><div class="field"><label>Valor por Sessão</label><span>R$ '+valor+'</span></div><div class="field"><label>Telefone</label><span>'+tel+'</span></div><div class="field"><label>E-mail</label><span>'+email+'</span></div></div><h3>1. Objeto</h3><p>6 sessões individuais de 50 minutos.</p><h3>2. Cancelamento</h3><p>Com mínimo 24h de antecedência.</p><h3>3. Sigilo</h3><p>Sigilo absoluto conforme o Código de Ética Profissional.</p><div class="sign-area"><div class="sign-block"><div class="sign-line"></div><div class="sign-label">'+sp+'</div></div><div class="sign-block"><div class="sign-line"></div><div class="sign-label">'+st+'</div></div></div><div class="footer">Projeto Social Transformar · Abordagem Cristã · '+new Date().toLocaleDateString('pt-BR')+'</div></body></html>';const win=window.open('','_blank');if(!win){showToast('Permita pop-ups.');return;}win.document.write(html);win.document.close();win.onload=()=>win.print();}
+
+
+// ══ DISPONIBILIDADE ══
+let dispState = {}; // { 'YYYY-MM-DD': true }
+let dispCalYear, dispCalMonth;
+
+function initDisponibilidade() {
+  if (!currentTherapist) return;
+  const t = therapists.find(x => x.id === currentTherapist.id);
+  dispState = t && t.disponibilidade ? { ...t.disponibilidade } : {};
+  const hoje = new Date();
+  dispCalYear = hoje.getFullYear();
+  dispCalMonth = hoje.getMonth();
+  const hInicio = document.getElementById('disp-hora-inicio');
+  const hFim = document.getElementById('disp-hora-fim');
+  const obs = document.getElementById('disp-obs');
+  if (t && t.disp_hora_inicio && hInicio) hInicio.value = t.disp_hora_inicio;
+  if (t && t.disp_hora_fim && hFim) hFim.value = t.disp_hora_fim;
+  if (t && t.disp_obs && obs) obs.value = t.disp_obs;
+  buildDispCal();
+}
+
+function buildDispCal() {
+  const grid = document.getElementById('disp-cal-grid');
+  if (!grid) return;
+  const fd = new Date(dispCalYear, dispCalMonth, 1).getDay();
+  const dm = new Date(dispCalYear, dispCalMonth + 1, 0).getDate();
+  const dp = new Date(dispCalYear, dispCalMonth, 0).getDate();
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  grid.innerHTML = '';
+  // dias do mês anterior (padding)
+  for (let i = 0; i < fd; i++) {
+    const el = document.createElement('div');
+    el.style.cssText = 'padding:8px 4px;border-radius:8px;font-size:.78rem;color:var(--text3);text-align:center;';
+    el.textContent = dp - fd + 1 + i;
+    grid.appendChild(el);
+  }
+  for (let d = 1; d <= dm; d++) {
+    const ds = dateKey(dispCalYear, dispCalMonth, d);
+    const dDate = new Date(dispCalYear, dispCalMonth, d); dDate.setHours(0,0,0,0);
+    const isPast = dDate < hoje;
+    const isSel = !!dispState[ds];
+    const el = document.createElement('div');
+    el.style.cssText = 'padding:8px 4px;border-radius:8px;font-size:.8rem;text-align:center;cursor:'+(isPast?'default':'pointer')+';transition:all .15s;'
+      + (isSel ? 'background:rgba(45,212,170,.18);border:1.5px solid rgba(45,212,170,.5);color:var(--teal);font-weight:600;'
+                : 'background:var(--bg3);border:1px solid var(--border2);color:'+(isPast?'var(--text3)':'var(--text)')+';opacity:'+(isPast?'.4':'1')+';');
+    el.textContent = d;
+    if (!isPast) el.addEventListener('click', () => toggleDispDay(ds));
+    grid.appendChild(el);
+  }
+  // dias restantes
+  const rem = (7 - (fd + dm) % 7) % 7;
+  for (let d = 1; d <= rem; d++) {
+    const el = document.createElement('div');
+    el.style.cssText = 'padding:8px 4px;border-radius:8px;font-size:.78rem;color:var(--text3);text-align:center;';
+    el.textContent = d;
+    grid.appendChild(el);
+  }
+  // nav do calendário de disponibilidade — injeta botões acima do grid se não existirem
+  let navRow = document.getElementById('disp-nav-row');
+  if (!navRow) {
+    navRow = document.createElement('div');
+    navRow.id = 'disp-nav-row';
+    navRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:12px';
+    navRow.innerHTML = '<button class="cal-arrow" onclick="navDispCal(-1)">‹</button>'
+      + '<span id="disp-cal-title" style="font-size:.88rem;font-weight:600;color:var(--text)"></span>'
+      + '<button class="cal-arrow" onclick="navDispCal(1)">›</button>';
+    grid.parentNode.insertBefore(navRow, grid);
+  }
+  const titleEl = document.getElementById('disp-cal-title');
+  if (titleEl) titleEl.textContent = MONTHS[dispCalMonth] + ' ' + dispCalYear;
+}
+
+function navDispCal(dir) {
+  dispCalMonth += dir;
+  if (dispCalMonth > 11) { dispCalMonth = 0; dispCalYear++; }
+  if (dispCalMonth < 0) { dispCalMonth = 11; dispCalYear--; }
+  buildDispCal();
+}
+
+function toggleDispDay(ds) {
+  if (dispState[ds]) delete dispState[ds];
+  else dispState[ds] = true;
+  buildDispCal();
+}
+
+function limparDisponibilidade() {
+  dispState = {};
+  buildDispCal();
+  showToast('Disponibilidade limpa.');
+}
+
+async function salvarDisponibilidade() {
+  if (!currentTherapist) return;
+  const t = therapists.find(x => x.id === currentTherapist.id);
+  if (!t) return;
+  const horaInicio = document.getElementById('disp-hora-inicio')?.value || '08:00';
+  const horaFim = document.getElementById('disp-hora-fim')?.value || '18:00';
+  const obs = document.getElementById('disp-obs')?.value?.trim() || '';
+  t.disponibilidade = { ...dispState };
+  t.disp_hora_inicio = horaInicio;
+  t.disp_hora_fim = horaFim;
+  t.disp_obs = obs;
+  const { error } = await db.from('terapeutas').update({
+    disponibilidade: dispState,
+    disp_hora_inicio: horaInicio,
+    disp_hora_fim: horaFim,
+    disp_obs: obs
+  }).eq('id', t.id);
+  if (error) { console.error('salvarDisponibilidade:', error); showToast('Erro ao salvar. Verifique a conexão.'); return; }
+  currentTherapist = { ...currentTherapist, ...t };
+  showSaveIndicator();
+  showToast('✓ Disponibilidade salva!');
+}
+
+// ══ AGENDA ADMIN — SELETOR DE TERAPEUTA COM BUSCA ══
+let _agendaTerapeutaId = '';
+
+function populateAdminAgendaFilter() {
+  // só garante que o dropdown está pronto; sem select a popular
+}
+
+function showAgendaDropdown() {
+  const inp = document.getElementById('admin-agenda-terapeuta-search');
+  const dd = document.getElementById('agenda-terapeuta-dropdown');
+  if (!inp || !dd) return;
+  const rect = inp.getBoundingClientRect();
+  dd.style.top = (rect.bottom + 4) + 'px';
+  dd.style.left = rect.left + 'px';
+  dd.style.width = rect.width + 'px';
+  dd.style.display = 'block';
+  filterAgendaTerapeutas(inp.value || '');
+}
+
+function hideAgendaDropdown() {
+  const dd = document.getElementById('agenda-terapeuta-dropdown');
+  if (dd) dd.style.display = 'none';
+}
+
+function filterAgendaTerapeutas(q) {
+  const list = document.getElementById('agenda-terapeuta-list');
+  const dd = document.getElementById('agenda-terapeuta-dropdown');
+  if (!list || !dd) return;
+  dd.style.display = 'block';
+  const filtered = therapists.filter(t => t.nome.toLowerCase().includes(q.toLowerCase().trim()));
+  const allOption = '<div onclick="selectAgendaTerapeuta(\'\',\'\')" style="padding:10px 14px;cursor:pointer;font-size:.82rem;color:var(--text2);border-bottom:1px solid var(--border);transition:background .15s" onmouseover="this.style.background=\'var(--bg3)\'" onmouseout="this.style.background=\'\'">— Todos os terapeutas —</div>';
+  if (!filtered.length) {
+    list.innerHTML = allOption + '<div style="padding:12px 14px;font-size:.8rem;color:var(--text3)">Nenhum terapeuta encontrado.</div>';
+    return;
+  }
+  list.innerHTML = allOption + filtered.map(t => {
+    const qtd = patients.filter(p => p.therapistId === t.id).length;
+    const temDisp = t.disponibilidade && Object.keys(t.disponibilidade).length > 0;
+    return '<div onclick="selectAgendaTerapeuta(\'' + t.id + '\',\'' + t.nome.replace(/'/g,"\\'") + '\')" '
+      + 'style="padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);transition:background .15s" '
+      + 'onmouseover="this.style.background=\'var(--bg3)\'" onmouseout="this.style.background=\'\'">'
+      + tAvatarHTML(t, 30, 7)
+      + '<div style="flex:1;min-width:0"><div style="font-size:.82rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + t.nome + '</div>'
+      + '<div style="font-size:.7rem;color:var(--text3)">' + qtd + ' paciente(s)'
+      + (temDisp ? ' · <span style="color:var(--teal)">● disponível</span>' : '') + '</div></div></div>';
+  }).join('');
+}
+
+function selectAgendaTerapeuta(tid, nome) {
+  _agendaTerapeutaId = tid;
+  const inp = document.getElementById('admin-agenda-terapeuta-search');
+  const clearBtn = document.getElementById('agenda-clear-btn');
+  const badge = document.getElementById('agenda-selected-badge');
+  const badgeNome = document.getElementById('agenda-selected-nome');
+  if (inp) inp.value = tid ? nome : '';
+  if (clearBtn) clearBtn.style.display = tid ? 'block' : 'none';
+  if (badge && badgeNome) { badge.style.display = tid ? 'flex' : 'none'; badgeNome.textContent = tid ? nome : ''; }
+  hideAgendaDropdown();
+  // info de disponibilidade
+  const infoEl = document.getElementById('admin-disp-info');
+  if (tid) {
+    const t = therapists.find(x => x.id === tid);
+    if (t) {
+      const hoje = new Date(); hoje.setHours(0,0,0,0);
+      const dias = Object.keys(t.disponibilidade || {}).filter(d => new Date(d + 'T00:00:00') >= hoje);
+      let info = '<strong>' + t.nome + '</strong>';
+      if (dias.length) {
+        info += ' — ' + dias.length + ' dia(s) livre(s) a partir de hoje';
+        if (t.disp_hora_inicio && t.disp_hora_fim) info += ' · ' + t.disp_hora_inicio + '–' + t.disp_hora_fim;
+        if (t.disp_obs) info += '<br><span style="color:var(--text2)">' + t.disp_obs + '</span>';
+      } else {
+        info += ' — Sem disponibilidade cadastrada';
+      }
+      if (infoEl) { infoEl.innerHTML = info; infoEl.style.display = 'block'; }
+    }
+  } else {
+    if (infoEl) infoEl.style.display = 'none';
+  }
+  buildAdminCalWithFilter(tid);
+}
+
+function clearAgendaTerapeutaFilter() {
+  selectAgendaTerapeuta('', '');
+}
+
+function onAdminAgendaTerapeutaChange() {
+  // mantido por compatibilidade — uso via selectAgendaTerapeuta
+}
+
+function buildAdminCalWithFilter(tid) {
+  buildCal('admin');
+  showDayAgenda('admin', calState.admin.selected);
+  buildUpcoming('admin');
+}
+
+// ── Patch no buildCal original para suportar filtro de terapeuta e destacar dias disponíveis ──
+const _origBuildCal = buildCal;
+// eslint-disable-next-line no-global-assign
+buildCal = function(prefix) {
+  if (prefix !== 'admin') { _origBuildCal(prefix); return; }
+  const { year, month, selected } = calState[prefix];
+  const gridEl = document.getElementById('cal-grid-admin');
+  const titleEl = document.getElementById('cal-admin-title');
+  const wdEl = document.getElementById('cal-wd-admin');
+  if (!gridEl) return;
+  if (titleEl) titleEl.textContent = MONTHS[month] + ' ' + year;
+  if (wdEl) wdEl.innerHTML = WDS.map(d => '<div class="cal-wd">' + d + '</div>').join('');
+  const fd = new Date(year, month, 1).getDay(), dm = new Date(year, month+1, 0).getDate(), dp = new Date(year, month, 0).getDate();
+  const ts = dateKey(today.getFullYear(), today.getMonth(), today.getDate());
+  const tid = _agendaTerapeutaId || '';
+  let mine = tid
+    ? appointments.filter(a => { const p = patients.find(x => x.id === a.patientId); return p && p.therapistId === tid; })
+    : appointments;
+  const abd = {}; mine.forEach(a => { if (!abd[a.date]) abd[a.date] = []; abd[a.date].push(a); });
+  // disponibilidade do terapeuta selecionado
+  const terapeutaSel = tid ? therapists.find(x => x.id === tid) : null;
+  const dispDias = terapeutaSel && terapeutaSel.disponibilidade ? terapeutaSel.disponibilidade : {};
+  gridEl.innerHTML = '';
+  for (let i = 0; i < fd; i++) { const c = document.createElement('div'); c.className = 'cal-day other-month'; c.innerHTML = '<div class="day-num">' + (dp-fd+1+i) + '</div>'; gridEl.appendChild(c); }
+  for (let d = 1; d <= dm; d++) {
+    const ds = dateKey(year, month, d), c = document.createElement('div');
+    const isDisp = !!dispDias[ds];
+    c.className = ['cal-day', ds===ts?'today':'', ds===selected?'selected':''].filter(Boolean).join(' ');
+    if (isDisp && !c.className.includes('selected')) c.style.cssText = 'outline:2px solid rgba(45,212,170,.5);outline-offset:-2px;background:rgba(45,212,170,.06)';
+    const apts = abd[ds] || [];
+    const dispBadge = isDisp ? '<div style="position:absolute;top:3px;right:4px;width:7px;height:7px;border-radius:50%;background:rgba(45,212,170,.8)" title="Disponível"></div>' : '';
+    c.style.position = 'relative';
+    c.innerHTML = '<div class="day-num">' + d + '</div><div class="day-events">'
+      + apts.slice(0,2).map(a => { const p = patients.find(x => x.id === a.patientId); return '<div class="day-event-pill ' + pColor(a.patientId) + '">' + a.time + ' ' + (p ? p.nome.split(' ')[0] : '?') + '</div>'; }).join('')
+      + (apts.length>2 ? '<div class="more-badge">+' + (apts.length-2) + '</div>' : '')
+      + '</div>' + dispBadge;
+    c.addEventListener('click', () => selectDay('admin', ds));
+    gridEl.appendChild(c);
+  }
+  const rem = (7-(fd+dm)%7)%7;
+  for (let d = 1; d <= rem; d++) { const c = document.createElement('div'); c.className = 'cal-day other-month'; c.innerHTML = '<div class="day-num">' + d + '</div>'; gridEl.appendChild(c); }
+};
 
 // ══ INIT ══
 (async()=>{
