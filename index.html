@@ -809,6 +809,9 @@ tr:hover td{background:rgba(255,255,255,.015)}
 <div class="modal-overlay" id="modal-casal" onclick="if(event.target===this)closeOverlay('modal-casal')"><div class="modal">
   <div class="modal-header"><h3 id="mc-name">Ficha de Casal</h3><button class="modal-close" onclick="closeOverlay('modal-casal')">✕</button></div>
   <div class="modal-body" id="mc-body"></div>
+  <div style="padding:16px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end">
+    <button class="btn-danger" onclick="deleteFichaCasal()">🗑 Deletar ficha</button>
+  </div>
 </div></div>
 
 <div class="modal-overlay" id="modal-reset" onclick="if(event.target===this)closeOverlay('modal-reset')"><div class="modal sm">
@@ -1346,38 +1349,30 @@ function renderAssignList(type,q){
   if(type==='patient'){
     // Inclui fichas individuais/infantil e fichas de casal (com nome composto)
     const casaisComNome=currentCasais.map(c=>({...c,nome:c.p1_nome+' & '+c.p2_nome,_isCasal:true}));
-    const all=[...patients,...casaisComNome];
-    // Disponíveis primeiro, já atribuídos por último
-    items=all.slice().sort((a,b)=>{const aA=a.therapistId?1:0,bA=b.therapistId?1:0;return aA-bA;});
+    items=[...patients,...casaisComNome];
   } else {
     items=therapists;
   }
-  const filtered=q?items.filter(x=>x.nome.toLowerCase().includes(q.toLowerCase())):items;
+  let filtered=q?items.filter(x=>x.nome.toLowerCase().includes(q.toLowerCase())):items;
+  if(type==='patient'){
+    // disponíveis primeiro, atribuídos por último
+    filtered=[...filtered.filter(x=>!x.therapistId),...filtered.filter(x=>x.therapistId)];
+  }
   if(!filtered.length){list.innerHTML='<div style="padding:12px;text-align:center;color:var(--text3);font-size:.78rem">Nenhum resultado.</div>';return;}
-  // Separador entre disponíveis e indisponíveis
-  const dispCount=filtered.filter(x=>!x.therapistId).length;
-  const indispCount=filtered.filter(x=>x.therapistId).length;
-  let html='';
-  let separatorAdded=false;
-  filtered.slice(0,20).forEach((x,i)=>{
-    const isUnavailable=type==='patient'&&!!x.therapistId;
-    // Adiciona separador antes do primeiro indisponível
-    if(type==='patient'&&isUnavailable&&!separatorAdded&&dispCount>0){
-      separatorAdded=true;
-      html+='<div style="padding:5px 12px;font-size:.6rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text3);background:var(--bg2);border-bottom:1px solid var(--border);border-top:1px solid var(--border)">Já atribuídos</div>';
-    }
+  list.innerHTML=filtered.slice(0,20).map(x=>{
+    const atribuido=type==='patient'&&!!x.therapistId;
     const tipoPill=x._isCasal?'<span style="font-size:.6rem;background:rgba(45,212,170,.1);color:var(--teal);border-radius:50px;padding:1px 7px;border:1px solid rgba(45,212,170,.2);margin-right:4px">Casal</span>':'';
     const sub=type==='patient'?(x.therapistId?(therapists.find(t=>t.id===x.therapistId)?.nome||'Atribuído'):'Sem terapeuta'):(x.esp||'Terapeuta');
-    const badge=isUnavailable?'<span style="font-size:.6rem;background:rgba(255,255,255,.05);color:var(--text3);border-radius:50px;padding:1px 7px;border:1px solid rgba(255,255,255,.08)">Atribuído</span>':'';
+    const badge=atribuido?'<span style="font-size:.6rem;background:rgba(90,106,138,.15);color:var(--text3);border-radius:50px;padding:1px 7px;border:1px solid var(--border2)">Atribuído</span>':'';
     const safeNome=x.nome.replace(/'/g,"\\'");
-    if(isUnavailable){
-      // Item escurecido e não clicável
-      html+='<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-bottom:1px solid var(--border);font-size:.82rem;opacity:.38;cursor:not-allowed;pointer-events:none;background:rgba(0,0,0,.18)"><div><div style="color:var(--text2);font-weight:500">'+tipoPill+x.nome+'</div><div style="font-size:.68rem;color:var(--text3);margin-top:1px">'+sub+'</div></div>'+badge+'</div>';
-    } else {
-      html+='<div onclick="selectAssignItem(\''+type+'\',\''+x.id+'\',\''+safeNome+'\')" style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:.82rem;transition:background .15s" onmouseover="this.style.background=\'var(--bg4)\'" onmouseout="this.style.background=\'none\'"><div><div style="color:var(--text);font-weight:500">'+tipoPill+x.nome+'</div><div style="font-size:.68rem;color:var(--text3);margin-top:1px">'+sub+'</div></div>'+badge+'</div>';
+    if(atribuido){
+      // escurecido e sem clique
+      return'<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-bottom:1px solid var(--border);font-size:.82rem;opacity:.42;cursor:not-allowed;user-select:none">'
+        +'<div><div style="color:var(--text);font-weight:500">'+tipoPill+x.nome+'</div>'
+        +'<div style="font-size:.68rem;color:var(--text3);margin-top:1px">'+sub+'</div></div>'+badge+'</div>';
     }
-  });
-  list.innerHTML=html;
+    return'<div onclick="selectAssignItem(\''+type+'\',\''+x.id+'\',\''+safeNome+'\')" style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:.82rem;transition:background .15s" onmouseover="this.style.background=\'var(--bg4)\'" onmouseout="this.style.background=\'none\'"><div><div style="color:var(--text);font-weight:500">'+tipoPill+x.nome+'</div><div style="font-size:.68rem;color:var(--text3);margin-top:1px">'+sub+'</div></div>'+badge+'</div>';
+  }).join('');
   if(filtered.length>20)list.innerHTML+='<div style="padding:8px 12px;text-align:center;font-size:.7rem;color:var(--text3)">+'+(filtered.length-20)+' resultados — refine a busca</div>';
 }
 function selectAssignItem(type,id,nome){
@@ -1507,13 +1502,43 @@ async function deleteFichaById(id){
   refreshAdmin();
   showToast('Ficha deletada.');
 }
+let _currentCasalId=null;
+async function deleteFichaCasal(){
+  if(!_currentCasalId)return;
+  const c=currentCasais.find(x=>x.id===_currentCasalId);
+  if(!c)return;
+  if(!confirm('Deletar a ficha do casal '+c.p1_nome+' & '+c.p2_nome+'? Esta ação não pode ser desfeita.'))return;
+  const ok=await dbDelete('fichas_casal',_currentCasalId);
+  if(!ok)return;
+  currentCasais=currentCasais.filter(x=>x.id!==_currentCasalId);
+  _currentCasalId=null;
+  closeOverlay('modal-casal');
+  refreshAdmin();
+  showToast('Ficha de casal deletada.');
+}
+function fmtWaLink(tel){
+  if(!tel||tel==='—')return null;
+  const num=tel.replace(/\D/g,'');
+  return num?'https://wa.me/55'+num:null;
+}
+function renderDetailRows(rows){
+  return rows.map(([k,v])=>{
+    const waFields=['Telefone','Tel. P1','Tel. P2'];
+    if(waFields.includes(k)&&v&&v!=='—'){
+      const link=fmtWaLink(v);
+      if(link) return'<div class="detail-row"><span class="dk">'+k+'</span><span class="dv"><a href="'+link+'" target="_blank" style="color:var(--teal);text-decoration:none;display:inline-flex;align-items:center;gap:5px">'+v+' <span style="font-size:.7rem;background:rgba(45,212,170,.12);border:1px solid rgba(45,212,170,.25);border-radius:50px;padding:1px 7px">WhatsApp ↗</span></a></span></div>';
+    }
+    return'<div class="detail-row"><span class="dk">'+k+'</span><span class="dv">'+v+'</span></div>';
+  }).join('');
+}
 function openFichaCasal(id){
+  _currentCasalId=id;
   const c=currentCasais.find(x=>x.id===id);if(!c)return;
   const t=therapists.find(x=>x.id===c.therapistId);
   let conflitos=[];try{conflitos=Array.isArray(c.conflitos)?c.conflitos:JSON.parse(c.conflitos||'[]');}catch(e){}
   document.getElementById('mc-name').textContent=c.p1_nome+' & '+c.p2_nome;
   const rows=[['Pessoa 1',c.p1_nome],['Idade P1',c.p1_idade||'—'],['Profissão P1',c.p1_profissao||'—'],['Tel. P1',c.p1_telefone||'—'],['Religião P1',c.p1_religiao||'—'],['Pessoa 2',c.p2_nome],['Idade P2',c.p2_idade||'—'],['Profissão P2',c.p2_profissao||'—'],['Tel. P2',c.p2_telefone||'—'],['Religião P2',c.p2_religiao||'—'],['Tempo juntos',c.tempo_juntos||'—'],['Filhos',c.filhos||'—'],['Conflitos',conflitos.join(', ')||'—'],['Conexão emocional',c.conexao_emocional||'—'],['Ansiedade',c.ansiedade||'—'],['Depressão',c.depressao||'—'],['Terapia anterior',c.terapia_anterior||'—'],['Motivação',c.motivacao||'—'],['Expectativas',c.expectativas||'—'],['Dedicação P1',c.dedicacao_p1||'—'],['Dedicação P2',c.dedicacao_p2||'—'],['Terapeuta',t?t.nome:'Não atribuído'],['Status',c.status||'andamento']];
-  document.getElementById('mc-body').innerHTML=rows.map(([k,v])=>'<div class="detail-row"><span class="dk">'+k+'</span><span class="dv">'+v+'</span></div>').join('');
+  document.getElementById('mc-body').innerHTML=renderDetailRows(rows);
   document.getElementById('modal-casal').classList.add('open');
 }
 let _currentFichaId=null;
@@ -1522,7 +1547,7 @@ function openFicha(id){
   const p=patients.find(x=>x.id===id);if(!p)return;const t=therapists.find(x=>x.id===p.therapistId);
   document.getElementById('mf-name').textContent=p.nome;
   const rows=p.tipo==='Adulto'?[['Tipo',p.tipo],['Entrada',p.data],['Sexo',p.sexo||'—'],['CPF',p.cpf||'—'],['Telefone',p.tel],['E-mail',p.email||'—'],['Cidade',p.cidade||'—'],['Queixa',p.queixa],['Sintomas',(p.sintomas||[]).join(', ')||'—'],['Terapia ant.',p.terapia||'—'],['Renda',p.renda||'—'],['Motivação',p.motivacao||'—'],['Expectativa',p.expectativa||'—'],['Pref. Terapeuta',p.preferenciaT||'—'],['Terapeuta',t?t.nome:'Não atribuído'],['Status',p.status],['Sessões',p.sessoes+'/6']]:[['Tipo',p.tipo],['Entrada',p.data],['Telefone',p.tel],['E-mail',p.email||'—'],['Cidade',p.cidade||'—'],['Responsável',(p.resp||'—')+' ('+p.parent+')'],['Queixa',p.queixa],['Sintomas',(p.sintomas||[]).join(', ')||'—'],['Renda',p.renda||'—'],['Pref. Terapeuta',p.preferenciaT||'—'],['Terapeuta',t?t.nome:'Não atribuído'],['Status',p.status],['Sessões',p.sessoes+'/6']];
-  document.getElementById('mf-body').innerHTML=rows.map(([k,v])=>'<div class="detail-row"><span class="dk">'+k+'</span><span class="dv">'+v+'</span></div>').join('');
+  document.getElementById('mf-body').innerHTML=renderDetailRows(rows);
   document.getElementById('modal-ficha').classList.add('open');
 }
 
