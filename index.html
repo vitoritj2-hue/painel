@@ -32,7 +32,7 @@ body.light .home-grid{background-image:linear-gradient(rgba(0,0,0,.04) 1px,trans
 body.high-contrast{--border:rgba(255,255,255,.22);--border2:rgba(255,255,255,.32);--text:#ffffff;--text2:#c8d8f8}
 body.high-contrast.light{--border:rgba(0,0,0,.22);--border2:rgba(0,0,0,.32);--text:#000000;--text2:#1a2235}
 /* ── FONTES ── */
-body.fs-sm{font-size:13px}body{font-size:var(--fs)}body.fs-lg{font-size:17px}
+body{font-size:var(--fs)}body.fs-sm{font-size:13px!important}body.fs-lg{font-size:17px!important}
 /* ── ESPAÇAMENTO AMPLO ── */
 body.spacing-wide .fg{margin-bottom:16px}body.spacing-wide .form-grid{gap:18px}body.spacing-wide p,body.spacing-wide td,body.spacing-wide li{line-height:1.8}
 *{margin:0;padding:0;box-sizing:border-box}
@@ -1757,9 +1757,13 @@ function loadCfg(){
 }
 function saveCfg(){try{localStorage.setItem(CFG_KEY,JSON.stringify(cfg));}catch(e){}}
 function applyCfg(){
-  const b=document.body;
+  const b=document.body,r=document.documentElement;
   b.classList.toggle('light',cfg.tema==='light');
   b.classList.remove('fs-sm','fs-lg');
+  const fsMap={sm:'13px',md:'15px',lg:'17px'};
+  const fs=fsMap[cfg.fs]||'15px';
+  r.style.fontSize=fs;
+  r.style.setProperty('--fs',fs);
   if(cfg.fs==='sm')b.classList.add('fs-sm');
   else if(cfg.fs==='lg')b.classList.add('fs-lg');
   b.classList.toggle('high-contrast',cfg.contrast==='on');
