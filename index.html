@@ -1506,6 +1506,7 @@ async function removePatientTherapist(id){
   if(ok){applyFilters();updateMetrics();showToast('✓ Paciente removido do terapeuta.');}
 }
 function renderAdminTable(list,q){
+  const tb=document.getElementById('admin-table-body');if(!tb)return;
   if(!list.length){tb.innerHTML='<tr class="empty-row"><td colspan="5">Nenhum paciente encontrado.</td></tr>';return;}
   const sc={espera:'var(--yellow)',andamento:'var(--blue)',pausado:'var(--red)',finalizado:'var(--teal)'};
   const sl={espera:'◔',andamento:'●',pausado:'⏸',finalizado:'✓'};
