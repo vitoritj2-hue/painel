@@ -710,38 +710,21 @@ tr:hover td{background:rgba(255,255,255,.015)}
     <div class="page" id="page-t-disponibilidade">
       <div class="page-title">Minha Disponibilidade</div>
       <div class="data-card" style="margin-bottom:16px">
-        <div class="data-card-header"><span class="data-card-title">Dias disponíveis para atendimento</span><span style="font-size:.74rem;color:var(--text3)">Clique para marcar/desmarcar</span></div>
-        <div style="padding:20px">
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px">
-            <span style="font-size:.72rem;color:var(--text2);display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;border-radius:3px;background:rgba(45,212,170,.5);display:inline-block"></span>Disponível</span>
-            <span style="font-size:.72rem;color:var(--text2);display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;border-radius:3px;background:var(--bg3);border:1px solid var(--border2);display:inline-block"></span>Não marcado</span>
-          </div>
-          <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;text-align:center;margin-bottom:20px" id="disp-weekdays-header">
-            <div style="font-size:.68rem;font-weight:700;color:var(--text3);padding-bottom:4px">Dom</div>
-            <div style="font-size:.68rem;font-weight:700;color:var(--text3);padding-bottom:4px">Seg</div>
-            <div style="font-size:.68rem;font-weight:700;color:var(--text3);padding-bottom:4px">Ter</div>
-            <div style="font-size:.68rem;font-weight:700;color:var(--text3);padding-bottom:4px">Qua</div>
-            <div style="font-size:.68rem;font-weight:700;color:var(--text3);padding-bottom:4px">Qui</div>
-            <div style="font-size:.68rem;font-weight:700;color:var(--text3);padding-bottom:4px">Sex</div>
-            <div style="font-size:.68rem;font-weight:700;color:var(--text3);padding-bottom:4px">Sáb</div>
-          </div>
-          <div id="disp-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:20px"></div>
-          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:4px">
+        <div class="data-card-header"><span class="data-card-title">Horários por dia da semana</span><span style="font-size:.74rem;color:var(--text3)">Configure seus horários livres para cada dia</span></div>
+        <div style="padding:16px 20px">
+          <div id="disp-weekday-list" style="display:flex;flex-direction:column;gap:10px"></div>
+          <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap">
             <button class="btn-secondary" onclick="limparDisponibilidade()" style="font-size:.78rem;padding:7px 16px">Limpar tudo</button>
             <button class="btn-primary" onclick="salvarDisponibilidade()" style="font-size:.78rem;padding:7px 20px">Salvar disponibilidade</button>
           </div>
         </div>
       </div>
       <div class="data-card" style="margin-bottom:16px">
-        <div class="data-card-header"><span class="data-card-title">Horários preferidos</span></div>
-        <div style="padding:20px">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
-            <div class="fg"><label>Horário de início</label><input type="time" id="disp-hora-inicio" value="08:00"></div>
-            <div class="fg"><label>Horário de fim</label><input type="time" id="disp-hora-fim" value="18:00"></div>
-          </div>
+        <div class="data-card-header"><span class="data-card-title">Observação geral</span></div>
+        <div style="padding:16px 20px">
           <div class="fg" style="margin-bottom:14px">
-            <label>Observação (ex: só manhãs, intervalos de 1h, etc.)</label>
-            <textarea id="disp-obs" placeholder="Ex: Atendo somente pela manhã. Intervalo entre sessões de 1 hora." style="width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:9px;padding:10px 12px;font-size:.86rem;resize:vertical;min-height:70px;outline:none;transition:border-color .2s" onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border2)'"></textarea>
+            <label>Observação (ex: intervalo de 1h entre sessões, etc.)</label>
+            <textarea id="disp-obs" placeholder="Ex: Intervalo de 1 hora entre sessões." style="width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:9px;padding:10px 12px;font-size:.86rem;resize:vertical;min-height:70px;outline:none;transition:border-color .2s" onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border2)'"></textarea>
           </div>
           <button class="btn-primary" style="width:100%;padding:12px" onclick="salvarDisponibilidade()">Salvar</button>
         </div>
@@ -1858,92 +1841,109 @@ function exportContractPDF(scope){const pfx=scope==='admin'?'ac':'tc';const nome
 
 
 // ══ DISPONIBILIDADE ══
-let dispState = {}; // { 'YYYY-MM-DD': true }
-let dispCalYear, dispCalMonth;
+const WEEKDAYS = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+// dispState: { 0: [{ini:'08:00',fim:'12:00'}, ...], 1: [], ... } (0=Dom, 1=Seg, ...)
+let dispState = {};
 
 function initDisponibilidade() {
   if (!currentTherapist) return;
   const t = therapists.find(x => x.id === currentTherapist.id);
-  dispState = t && t.disponibilidade ? { ...t.disponibilidade } : {};
-  const hoje = new Date();
-  dispCalYear = hoje.getFullYear();
-  dispCalMonth = hoje.getMonth();
-  const hInicio = document.getElementById('disp-hora-inicio');
-  const hFim = document.getElementById('disp-hora-fim');
+  // Suporta formato antigo (objeto de datas) e novo (por dia da semana)
+  const raw = t && t.disponibilidade ? t.disponibilidade : {};
+  // Detecta formato novo: chaves são números de 0-6
+  if (raw['1'] !== undefined || raw['0'] !== undefined || Object.keys(raw).every(k => !isNaN(k) && +k < 7)) {
+    dispState = {};
+    for (let d = 0; d < 7; d++) dispState[d] = Array.isArray(raw[d]) ? raw[d] : [];
+  } else {
+    // formato antigo — reseta
+    dispState = {};
+    for (let d = 0; d < 7; d++) dispState[d] = [];
+  }
   const obs = document.getElementById('disp-obs');
-  if (t && t.disp_hora_inicio && hInicio) hInicio.value = t.disp_hora_inicio;
-  if (t && t.disp_hora_fim && hFim) hFim.value = t.disp_hora_fim;
   if (t && t.disp_obs && obs) obs.value = t.disp_obs;
-  buildDispCal();
+  buildDispWeekdays();
 }
 
-function buildDispCal() {
-  const grid = document.getElementById('disp-cal-grid');
-  if (!grid) return;
-  const fd = new Date(dispCalYear, dispCalMonth, 1).getDay();
-  const dm = new Date(dispCalYear, dispCalMonth + 1, 0).getDate();
-  const dp = new Date(dispCalYear, dispCalMonth, 0).getDate();
-  const hoje = new Date(); hoje.setHours(0,0,0,0);
-  grid.innerHTML = '';
-  // dias do mês anterior (padding)
-  for (let i = 0; i < fd; i++) {
-    const el = document.createElement('div');
-    el.style.cssText = 'padding:8px 4px;border-radius:8px;font-size:.78rem;color:var(--text3);text-align:center;';
-    el.textContent = dp - fd + 1 + i;
-    grid.appendChild(el);
+function buildDispWeekdays() {
+  const list = document.getElementById('disp-weekday-list');
+  if (!list) return;
+  list.innerHTML = '';
+  for (let d = 0; d < 7; d++) {
+    const slots = dispState[d] || [];
+    const isActive = slots.length > 0;
+    const row = document.createElement('div');
+    row.style.cssText = 'background:var(--bg3);border:1px solid '+(isActive?'rgba(45,212,170,.35)':'var(--border2)')+';border-radius:12px;overflow:hidden;transition:border-color .2s';
+    row.innerHTML = `
+      <div style="display:flex;align-items:center;padding:12px 14px;gap:12px;cursor:pointer" onclick="toggleDispDay(${d})">
+        <div style="width:36px;height:36px;border-radius:50%;background:${isActive?'rgba(45,212,170,.15)':'var(--bg4)'};border:1.5px solid ${isActive?'rgba(45,212,170,.4)':'var(--border2)'};display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;color:${isActive?'var(--teal)':'var(--text3)'};flex-shrink:0;transition:all .2s">
+          ${WEEKDAYS[d].substring(0,3).toUpperCase()}
+        </div>
+        <div style="flex:1">
+          <div style="font-size:.84rem;font-weight:600;color:${isActive?'var(--text)':'var(--text3)'}">${WEEKDAYS[d]}</div>
+          <div style="font-size:.7rem;color:${isActive?'var(--teal)':'var(--text3)'}">
+            ${isActive ? slots.map(s=>s.ini+' – '+s.fim).join(' · ') : 'Indisponível'}
+          </div>
+        </div>
+        <div style="font-size:.72rem;padding:3px 10px;border-radius:50px;background:${isActive?'rgba(45,212,170,.12)':'rgba(90,106,138,.1)'};color:${isActive?'var(--teal)':'var(--text3)'};border:1px solid ${isActive?'rgba(45,212,170,.25)':'var(--border2)'}">
+          ${isActive?'Disponível':'Fechado'}
+        </div>
+      </div>
+      <div id="disp-slots-${d}" style="display:${isActive?'block':'none'};padding:0 14px 14px">
+        <div id="disp-slots-list-${d}"></div>
+        <button onclick="addDispSlot(${d})" style="margin-top:8px;background:none;border:1px dashed rgba(45,212,170,.4);color:var(--teal);border-radius:8px;padding:6px 14px;font-size:.76rem;cursor:pointer;width:100%;transition:background .15s" onmouseover="this.style.background='rgba(45,212,170,.06)'" onmouseout="this.style.background='none'">+ Adicionar horário</button>
+      </div>`;
+    list.appendChild(row);
+    renderDispSlots(d);
   }
-  for (let d = 1; d <= dm; d++) {
-    const ds = dateKey(dispCalYear, dispCalMonth, d);
-    const dDate = new Date(dispCalYear, dispCalMonth, d); dDate.setHours(0,0,0,0);
-    const isPast = dDate < hoje;
-    const isSel = !!dispState[ds];
-    const el = document.createElement('div');
-    el.style.cssText = 'padding:8px 4px;border-radius:8px;font-size:.8rem;text-align:center;cursor:'+(isPast?'default':'pointer')+';transition:all .15s;'
-      + (isSel ? 'background:rgba(45,212,170,.18);border:1.5px solid rgba(45,212,170,.5);color:var(--teal);font-weight:600;'
-                : 'background:var(--bg3);border:1px solid var(--border2);color:'+(isPast?'var(--text3)':'var(--text)')+';opacity:'+(isPast?'.4':'1')+';');
-    el.textContent = d;
-    if (!isPast) el.addEventListener('click', () => toggleDispDay(ds));
-    grid.appendChild(el);
-  }
-  // dias restantes
-  const rem = (7 - (fd + dm) % 7) % 7;
-  for (let d = 1; d <= rem; d++) {
-    const el = document.createElement('div');
-    el.style.cssText = 'padding:8px 4px;border-radius:8px;font-size:.78rem;color:var(--text3);text-align:center;';
-    el.textContent = d;
-    grid.appendChild(el);
-  }
-  // nav do calendário de disponibilidade — injeta botões acima do grid se não existirem
-  let navRow = document.getElementById('disp-nav-row');
-  if (!navRow) {
-    navRow = document.createElement('div');
-    navRow.id = 'disp-nav-row';
-    navRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:12px';
-    navRow.innerHTML = '<button class="cal-arrow" onclick="navDispCal(-1)">‹</button>'
-      + '<span id="disp-cal-title" style="font-size:.88rem;font-weight:600;color:var(--text)"></span>'
-      + '<button class="cal-arrow" onclick="navDispCal(1)">›</button>';
-    grid.parentNode.insertBefore(navRow, grid);
-  }
-  const titleEl = document.getElementById('disp-cal-title');
-  if (titleEl) titleEl.textContent = MONTHS[dispCalMonth] + ' ' + dispCalYear;
 }
 
-function navDispCal(dir) {
-  dispCalMonth += dir;
-  if (dispCalMonth > 11) { dispCalMonth = 0; dispCalYear++; }
-  if (dispCalMonth < 0) { dispCalMonth = 11; dispCalYear--; }
-  buildDispCal();
+function renderDispSlots(d) {
+  const el = document.getElementById(`disp-slots-list-${d}`);
+  if (!el) return;
+  const slots = dispState[d] || [];
+  if (!slots.length) { el.innerHTML = ''; return; }
+  el.innerHTML = slots.map((s, i) => `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;background:var(--bg4);border-radius:8px;padding:8px 10px">
+      <span style="font-size:.74rem;color:var(--text3);white-space:nowrap">das</span>
+      <input type="time" value="${s.ini}" oninput="updateDispSlot(${d},${i},'ini',this.value)"
+        style="flex:1;background:var(--bg2);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:5px 8px;font-size:.82rem;outline:none">
+      <span style="font-size:.74rem;color:var(--text3);white-space:nowrap">às</span>
+      <input type="time" value="${s.fim}" oninput="updateDispSlot(${d},${i},'fim',this.value)"
+        style="flex:1;background:var(--bg2);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:5px 8px;font-size:.82rem;outline:none">
+      <button onclick="removeDispSlot(${d},${i})" style="background:rgba(245,101,101,.12);border:1px solid rgba(245,101,101,.25);color:var(--red);border-radius:6px;padding:4px 8px;font-size:.8rem;cursor:pointer;flex-shrink:0">✕</button>
+    </div>`).join('');
 }
 
-function toggleDispDay(ds) {
-  if (dispState[ds]) delete dispState[ds];
-  else dispState[ds] = true;
-  buildDispCal();
+function toggleDispDay(d) {
+  if (!dispState[d]) dispState[d] = [];
+  if (dispState[d].length > 0) {
+    dispState[d] = [];
+  } else {
+    dispState[d] = [{ini:'08:00', fim:'18:00'}];
+  }
+  buildDispWeekdays();
+}
+
+function addDispSlot(d) {
+  if (!dispState[d]) dispState[d] = [];
+  const last = dispState[d][dispState[d].length - 1];
+  dispState[d].push({ini: last ? last.fim : '08:00', fim: '18:00'});
+  renderDispSlots(d);
+  buildDispWeekdays();
+}
+
+function removeDispSlot(d, i) {
+  dispState[d].splice(i, 1);
+  buildDispWeekdays();
+}
+
+function updateDispSlot(d, i, field, val) {
+  if (dispState[d] && dispState[d][i]) dispState[d][i][field] = val;
 }
 
 function limparDisponibilidade() {
-  dispState = {};
-  buildDispCal();
+  for (let d = 0; d < 7; d++) dispState[d] = [];
+  buildDispWeekdays();
   showToast('Disponibilidade limpa.');
 }
 
@@ -1951,17 +1951,11 @@ async function salvarDisponibilidade() {
   if (!currentTherapist) return;
   const t = therapists.find(x => x.id === currentTherapist.id);
   if (!t) return;
-  const horaInicio = document.getElementById('disp-hora-inicio')?.value || '08:00';
-  const horaFim = document.getElementById('disp-hora-fim')?.value || '18:00';
   const obs = document.getElementById('disp-obs')?.value?.trim() || '';
   t.disponibilidade = { ...dispState };
-  t.disp_hora_inicio = horaInicio;
-  t.disp_hora_fim = horaFim;
   t.disp_obs = obs;
   const { error } = await db.from('terapeutas').update({
     disponibilidade: dispState,
-    disp_hora_inicio: horaInicio,
-    disp_hora_fim: horaFim,
     disp_obs: obs
   }).eq('id', t.id);
   if (error) { console.error('salvarDisponibilidade:', error); showToast('Erro ao salvar. Verifique a conexão.'); return; }
@@ -2007,7 +2001,7 @@ function filterAgendaTerapeutas(q) {
   }
   list.innerHTML = allOption + filtered.map(t => {
     const qtd = patients.filter(p => p.therapistId === t.id).length;
-    const temDisp = t.disponibilidade && Object.keys(t.disponibilidade).length > 0;
+    const temDisp = t.disponibilidade && Object.values(t.disponibilidade).some(s=>Array.isArray(s)&&s.length>0);
     return '<div onclick="selectAgendaTerapeuta(\'' + t.id + '\',\'' + t.nome.replace(/'/g,"\\'") + '\')" '
       + 'style="padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);transition:background .15s" '
       + 'onmouseover="this.style.background=\'var(--bg3)\'" onmouseout="this.style.background=\'\'">'
@@ -2034,12 +2028,17 @@ function selectAgendaTerapeuta(tid, nome) {
     const t = therapists.find(x => x.id === tid);
     if (t) {
       const hoje = new Date(); hoje.setHours(0,0,0,0);
-      const dias = Object.keys(t.disponibilidade || {}).filter(d => new Date(d + 'T00:00:00') >= hoje);
+      const disp = t.disponibilidade || {};
+      const diasComSlots = Object.entries(disp).filter(([d,slots])=>Array.isArray(slots)&&slots.length>0);
       let info = '<strong>' + t.nome + '</strong>';
-      if (dias.length) {
-        info += ' — ' + dias.length + ' dia(s) livre(s) a partir de hoje';
-        if (t.disp_hora_inicio && t.disp_hora_fim) info += ' · ' + t.disp_hora_inicio + '–' + t.disp_hora_fim;
-        if (t.disp_obs) info += '<br><span style="color:var(--text2)">' + t.disp_obs + '</span>';
+      if (diasComSlots.length) {
+        info += '<div style="margin-top:6px;display:flex;flex-direction:column;gap:3px">';
+        const wd=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+        diasComSlots.sort((a,b)=>+a[0]-+b[0]).forEach(([d,slots])=>{
+          info += '<span style="font-size:.72rem">📅 <b>'+wd[+d]+'</b>: '+slots.map(s=>s.ini+'–'+s.fim).join(', ')+'</span>';
+        });
+        info += '</div>';
+        if (t.disp_obs) info += '<div style="margin-top:4px;font-size:.7rem;color:var(--text2)">'+t.disp_obs+'</div>';
       } else {
         info += ' — Sem disponibilidade cadastrada';
       }
