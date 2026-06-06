@@ -794,8 +794,9 @@ tr:hover td{background:rgba(255,255,255,.015)}
 <div class="modal-overlay" id="modal-ficha" onclick="if(event.target===this)closeOverlay('modal-ficha')"><div class="modal">
   <div class="modal-header"><h3 id="mf-name">Ficha</h3><button class="modal-close" onclick="closeOverlay('modal-ficha')">✕</button></div>
   <div class="modal-body" id="mf-body"></div>
-  <div style="padding:16px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end">
-    <button class="btn-danger" id="mf-delete-btn" onclick="deleteFicha()">🗑 Deletar ficha</button>
+  <div style="padding:16px 20px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:10px">
+    <button class="btn-danger" id="mf-remove-t-btn" onclick="removePatientTherapist(_currentFichaId)" style="display:none">👤 Remover terapeuta</button>
+    <button class="btn-danger" id="mf-delete-btn" onclick="deleteFicha()" style="margin-left:auto">🗑 Deletar ficha</button>
   </div>
 </div></div>
 
@@ -1503,7 +1504,11 @@ async function removePatientTherapist(id){
   if(!confirm('Remover '+p.nome+' do terapeuta '+(t?t.nome:'atual')+'?'))return;
   p.therapistId=null;
   const ok=await dbUpdate('fichas_triagem',id,{therapistId:null});
-  if(ok){applyFilters();updateMetrics();showToast('✓ Paciente removido do terapeuta.');}
+  if(ok){
+    closeOverlay('modal-ficha');
+    applyFilters();updateMetrics();
+    showToast('✓ Terapeuta removido do paciente.');
+  }
 }
 function renderAdminTable(list,q){
   const tb=document.getElementById('admin-table-body');if(!tb)return;
@@ -1516,7 +1521,7 @@ function renderAdminTable(list,q){
     const bar='<div style="display:flex;align-items:center;gap:5px"><span style="font-size:.76rem;font-weight:600;color:var(--text)">'+p.sessoes+'/6</span><div style="flex:1;height:3px;background:var(--bg4);border-radius:50px;min-width:32px"><div style="width:'+Math.round(p.sessoes/6*100)+'%;height:100%;border-radius:50px;background:var(--grad)"></div></div></div>';
     const statusBtns='<div style="display:flex;gap:3px;margin-top:5px">'+['espera','andamento','pausado','finalizado'].map(s=>'<button class="sbt'+(p.status===s?' '+bc[s]:'')+'" title="'+(s==='espera'?'Espera':s==='andamento'?'Em andamento':s==='pausado'?'Pausado':'Finalizado')+'" onclick="setStatusAdmin(\''+p.id+'\',\''+s+'\')" style="flex:none;width:24px;height:24px;font-size:.62rem;padding:0">'+sl[s]+'</button>').join('')+'</div>';
     const statusCell='<div style="display:inline-flex;align-items:center;gap:6px"><div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:'+sc[p.status||'espera']+'"></div>'+statusBadge(p.status)+'</div>'+statusBtns;
-    const acoes='<button class="link-btn" onclick="openFicha(\''+p.id+'\')">Ficha</button> <button class="link-btn" style="color:var(--teal)" onclick="openAssignFor(\''+p.id+'\')">Atribuir</button>'+(t?' <button class="link-btn" style="color:var(--red)" title="Remover do terapeuta '+t.nome+'" onclick="removePatientTherapist(\''+p.id+'\')">Remover</button>':'');
+    const acoes='<button class="link-btn" onclick="openFicha(\''+p.id+'\')">Ficha</button> <button class="link-btn" style="color:var(--teal)" onclick="openAssignFor(\''+p.id+'\')">Atribuir</button>';
     return'<tr><td><strong>'+p.nome+'</strong><br><span style="font-size:.7rem;color:var(--text3)">'+p.tipo+'</span></td><td>'+(t?t.nome:'<span style="color:var(--text3);font-size:.76rem">Não atribuído</span>')+'</td><td style="min-width:80px">'+bar+'</td><td style="min-width:130px">'+statusCell+'</td><td>'+acoes+'</td></tr>';
   }).join('');
 }
@@ -1615,6 +1620,8 @@ function openFicha(id){
     ?[['Tipo',p.tipo],['Entrada',p.data],['Nome',p.nome],['Nascimento',p.nasc||'—'],['Sexo',p.sexo||'—'],['Estado Civil',p.ecivil||'—'],['CPF',p.cpf||'—'],['Telefone',p.tel],['E-mail',p.email||'—'],['Cidade',p.cidade||'—'],['Religião',p.religiao||'—'],['Renda',p.renda||'—'],['Auxílio gov.',p.auxilio||'—'],['Queixa principal',p.queixa],['Sintomas',(p.sintomas||[]).join(', ')||'—'],['Terapia anterior',p.terapia||'—'],['Medicamentos',p.med||'—'],['Motivação',p.motivacao||'—'],['Expectativa',p.expectativa||'—'],['Dias disponíveis',p.dias||'—'],['Período preferido',p.periodo||'—'],['Pref. Terapeuta',p.preferenciaT||'—'],['Terapeuta',t?t.nome:'Não atribuído'],['Status',p.status],['Sessões',p.sessoes+'/6']]
     :[['Tipo',p.tipo],['Entrada',p.data],['Nome',p.nome],['Nascimento',p.nasc||'—'],['Sexo',p.sexo||'—'],['Escola',p.escola||'—'],['Reside com',p.reside||'—'],['Cidade',p.cidade||'—'],['Responsável',(p.resp||'—')+' ('+p.parent+')'],['Telefone',p.tel],['E-mail',p.email||'—'],['Religião',p.religiao||'—'],['Renda familiar',p.renda||'—'],['Auxílio gov.',p.auxilio||'—'],['Queixa principal',p.queixa],['Histórico',p.hist||'—'],['Sintomas',(p.sintomas||[]).join(', ')||'—'],['Motivação',p.motivacao||'—'],['Expectativa',p.expectativa||'—'],['Dias disponíveis',p.dias||'—'],['Período preferido',p.periodo||'—'],['Pref. Terapeuta',p.preferenciaT||'—'],['Terapeuta',t?t.nome:'Não atribuído'],['Status',p.status],['Sessões',p.sessoes+'/6']];
   document.getElementById('mf-body').innerHTML=renderDetailRows(rows);
+  const removeBtn=document.getElementById('mf-remove-t-btn');
+  if(removeBtn)removeBtn.style.display=p.therapistId?'block':'none';
   document.getElementById('modal-ficha').classList.add('open');
 }
 
