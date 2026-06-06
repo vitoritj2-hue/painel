@@ -1505,7 +1505,7 @@ async function removePatientTherapist(id){
   const ok=await dbUpdate('fichas_triagem',id,{therapistId:null});
   if(ok){applyFilters();updateMetrics();showToast('✓ Paciente removido do terapeuta.');}
 }
-  const tb=document.getElementById('admin-table-body');if(!tb)return;
+function renderAdminTable(list,q){
   if(!list.length){tb.innerHTML='<tr class="empty-row"><td colspan="5">Nenhum paciente encontrado.</td></tr>';return;}
   const sc={espera:'var(--yellow)',andamento:'var(--blue)',pausado:'var(--red)',finalizado:'var(--teal)'};
   const sl={espera:'◔',andamento:'●',pausado:'⏸',finalizado:'✓'};
