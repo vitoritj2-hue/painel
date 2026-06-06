@@ -906,7 +906,28 @@ function fmtDate(s){if(!s)return'—';const[y,m,d]=s.split('-');return d+'/'+m+'
 function initials(n){if(!n)return'?';return n.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();}
 function gv(id){const el=document.getElementById(id);return el?el.value.trim():'';}
 function markErr(id){const el=document.getElementById(id);if(el)el.classList.add('field-error');}
-function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2400);}
+function playNotifSound(type='default'){
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    const sounds={
+      default:[[523.25,0,0.08,0],[659.25,0.09,0.08,0],[783.99,0.18,0.12,0]],
+      ficha:[[440,0,0.06,0],[554,0.07,0.06,0],[659,0.14,0.1,0],[880,0.25,0.14,0]],
+      alert:[[330,0,0.05,0],[262,0.08,0.1,0]]
+    };
+    const seq=sounds[type]||sounds.default;
+    seq.forEach(([freq,delay,dur,])=>{
+      const o=ctx.createOscillator(),g=ctx.createGain();
+      o.connect(g);g.connect(ctx.destination);
+      o.type='sine';o.frequency.value=freq;
+      const t=ctx.currentTime+delay;
+      g.gain.setValueAtTime(0,t);
+      g.gain.linearRampToValueAtTime(0.18,t+0.01);
+      g.gain.exponentialRampToValueAtTime(0.001,t+dur+0.05);
+      o.start(t);o.stop(t+dur+0.06);
+    });
+  }catch(e){}
+}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');playNotifSound('default');setTimeout(()=>t.classList.remove('show'),2400);}
 function showGlobalLoading(v){const el=document.getElementById('global-loading');if(el)el.classList.toggle('show',v);}
 function showSaveIndicator(){const el=document.getElementById('save-indicator');if(el){el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2000);}}
 const MONTHS=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -963,7 +984,7 @@ async function loadData(){
 }
 
 // ══ NOTIFICAÇÕES ADMIN ══
-async function addAdminNotification(icon,cls,title,desc){
+async function addAdminNotification(icon,cls,title,desc){playNotifSound('ficha');
   const n={id:uid(),icon,cls,title,description:desc,time:new Date().toLocaleString('pt-BR')};
   const res=await dbInsert('admin_notificacoes',n);
   if(res)adminNotifications.unshift({...res,desc:res.description});
@@ -1133,6 +1154,17 @@ function logoutTherapist(){currentTherapist=null;clearSavedSession();stopNotifPo
 let _notifPollingInterval=null;
 let _knownPatientIds=new Set();
 
+let _swReg=null;
+
+// Registra o Service Worker
+async function registerSW(){
+  if(!('serviceWorker' in navigator))return;
+  try{
+    _swReg=await navigator.serviceWorker.register('/sw.js');
+    console.log('SW registrado');
+  }catch(e){console.warn('SW falhou:',e);}
+}
+
 async function requestNotifPermission(){
   if(!('Notification' in window))return false;
   if(Notification.permission==='granted')return true;
@@ -1141,11 +1173,26 @@ async function requestNotifPermission(){
   return perm==='granted';
 }
 
-function sendDeviceNotif(title,body,icon){
+async function sendDeviceNotif(title,body,icon){
   if(Notification.permission!=='granted')return;
-  const n=new Notification(title,{body,icon:icon||'',badge:icon||'',tag:title,renotify:true});
-  n.onclick=()=>{window.focus();n.close();};
-  setTimeout(()=>n.close(),8000);
+  // Prefere usar o SW para notificações (funcionam com site minimizado)
+  const reg=_swReg||await navigator.serviceWorker?.ready;
+  if(reg&&reg.showNotification){
+    await reg.showNotification(title,{
+      body:body||'',
+      icon:icon||'/icons/icon-192.png',
+      badge:'/icons/icon-96.png',
+      vibrate:[200,100,200],
+      tag:'transformar-notif',
+      renotify:true,
+      requireInteraction:false
+    });
+  } else {
+    // Fallback: notificação direta (só funciona com site aberto)
+    const n=new Notification(title,{body,icon:icon||'',badge:icon||'',tag:title,renotify:true});
+    n.onclick=()=>{window.focus();n.close();};
+    setTimeout(()=>n.close(),8000);
+  }
 }
 
 function startNotifPolling(){
@@ -2064,6 +2111,7 @@ buildCal = function(prefix) {
 // ══ INIT ══
 (async()=>{
   loadCfg();
+  registerSW(); // Service Worker para notificações
   calState.admin.selected=dateKey(today.getFullYear(),today.getMonth(),today.getDate());
   calState.t.selected=dateKey(today.getFullYear(),today.getMonth(),today.getDate());
   await loadData();
