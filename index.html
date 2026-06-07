@@ -1621,7 +1621,10 @@ function openFicha(id){
     :[['Tipo',p.tipo],['Entrada',p.data],['Nome',p.nome],['Nascimento',p.nasc||'—'],['Sexo',p.sexo||'—'],['Escola',p.escola||'—'],['Reside com',p.reside||'—'],['Cidade',p.cidade||'—'],['Responsável',(p.resp||'—')+' ('+p.parent+')'],['Telefone',p.tel],['E-mail',p.email||'—'],['Religião',p.religiao||'—'],['Renda familiar',p.renda||'—'],['Auxílio gov.',p.auxilio||'—'],['Queixa principal',p.queixa],['Histórico',p.hist||'—'],['Sintomas',(p.sintomas||[]).join(', ')||'—'],['Motivação',p.motivacao||'—'],['Expectativa',p.expectativa||'—'],['Dias disponíveis',p.dias||'—'],['Período preferido',p.periodo||'—'],['Pref. Terapeuta',p.preferenciaT||'—'],['Terapeuta',t?t.nome:'Não atribuído'],['Status',p.status],['Sessões',p.sessoes+'/6']];
   document.getElementById('mf-body').innerHTML=renderDetailRows(rows);
   const removeBtn=document.getElementById('mf-remove-t-btn');
-  if(removeBtn)removeBtn.style.display=p.therapistId?'block':'none';
+  const deleteBtn=document.getElementById('mf-delete-btn');
+  const isAdmin=!!document.getElementById('screen-admin')?.classList.contains('active');
+  if(removeBtn)removeBtn.style.display=(isAdmin&&p.therapistId)?'block':'none';
+  if(deleteBtn)deleteBtn.style.display=isAdmin?'block':'none';
   document.getElementById('modal-ficha').classList.add('open');
 }
 
@@ -1650,7 +1653,7 @@ function renderTherapistCards(){
     +(next?'<div style="font-size:.7rem;color:var(--blue);margin-bottom:9px">Próxima: '+fmtDate(next.date)+' às '+next.time+'</div>':'<div style="font-size:.7rem;color:var(--text3);margin-bottom:9px">Sem sessão agendada</div>')
     +'<div class="dev-lbl">Devolutiva <button class="dev-link" onclick="openDevHistory(\''+p.id+'\')">Histórico →</button></div>'
     +'<textarea class="dev-txt" placeholder="Devolutiva da sessão '+(p.sessoes||1)+'..." onchange="updateDev(\''+p.id+'\',this.value,'+(p.sessoes||1)+')">'+p.devolutiva+'</textarea>'
-    +'</div><div class="pcf">'+btns+'</div></div>';
+    +'</div><div class="pcf">'+btns+'<button class="link-btn" style="margin-left:auto;font-size:.72rem;color:var(--blue)" onclick="openFicha(\''+p.id+'\')">📋 Ver ficha completa</button></div></div>';
   }).join('');
 }
 async function changeSessoes(id,delta){const p=patients.find(x=>x.id===id);if(!p)return;const n=Math.min(6,Math.max(0,p.sessoes+delta));if(n===p.sessoes)return;p.sessoes=n;if(n>=6&&p.status!=='finalizado')p.status='finalizado';else if(n>=1&&p.status==='espera')p.status='andamento';else if(n===0&&p.status==='andamento')p.status='espera';const ok=await dbUpdate('fichas_triagem',id,{sessoes:n,status:p.status});if(ok){renderTherapistCards();updateMetrics();showToast(delta>0?'✓ Sessão '+n+'/6 registrada! Status: '+(p.status==='andamento'?'Em andamento':p.status):'Sessão removida ('+n+'/6)');}}
