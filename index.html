@@ -2017,8 +2017,8 @@ function renderContratosList(){
       +'<span style="font-size:.64rem;padding:2px 8px;border-radius:50px;background:'+(temSignT?'rgba(45,212,170,.12)':'rgba(90,106,138,.1)')+';border:1px solid '+(temSignT?'rgba(45,212,170,.3)':'var(--border2)')+';color:'+(temSignT?'var(--teal)':'var(--text3)')+'">✍ Terapeuta '+(temSignT?'✓':'pendente')+'</span>'
       +'</div></div>'
       +'<div style="display:flex;gap:8px;flex-shrink:0">'
-      +'<button class="btn-secondary" style="font-size:.74rem;padding:6px 14px" onclick="exportContratoPDF(''+c.id+'')">⬇ PDF</button>'
-      +'<button class="link-btn" style="color:var(--red);font-size:.74rem" onclick="deletarContrato(''+c.id+'')">Apagar</button>'
+      +'<button class="btn-secondary" style="font-size:.74rem;padding:6px 14px" onclick="exportContratoPDF(\''+c.id+'\')">⬇ PDF</button>'
+      +'<button class="link-btn" style="color:var(--red);font-size:.74rem" onclick="deletarContrato(\''+c.id+'\')">Apagar</button>'
       +'</div></div>';
   }).join('');
 }
