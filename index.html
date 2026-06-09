@@ -1759,7 +1759,7 @@ function showDayAgenda(prefix,ds){
   }
   const apts=mine.filter(a=>a.date===ds).sort((a,b)=>a.time.localeCompare(b.time));
   if(!apts.length){agendaEl.innerHTML='<p style="color:var(--text3);font-size:.78rem">Nenhuma sessão neste dia.</p>';return;}
-  agendaEl.innerHTML=apts.map(a=>{const p=patients.find(x=>x.id===a.patientId);const t=therapists.find(x=>x.id===(p&&p.therapistId));return'<div class="agenda-item"><div class="agenda-time">'+a.time+'</div><div class="agenda-info"><h5>'+(p?p.nome:'?')+'</h5><p>'+a.mode+(a.obs?' · '+a.obs:'')+(prefix==='admin'&&t?' · <span style="color:var(--text2);font-size:.72rem">'+t.nome+'</span>':'')+'</p></div>'+(prefix==='t'?'<button class="agenda-delete" onclick="deleteAppointment(\''+a.id+'\',\''+ds+'\')">×</button>':'')+'</div>';}).join('');
+  agendaEl.innerHTML=apts.map(a=>{const p=patients.find(x=>x.id===a.patientId);const t=therapists.find(x=>x.id===(p&&p.therapistId));return'<div class="agenda-item"><div class="agenda-time">'+a.time+'</div><div class="agenda-info"><h5>'+(p?p.nome:'?')+'</h5><p>'+a.mode+(a.obs?' · '+a.obs:'')+(prefix==='admin'&&t?' · <span style="color:var(--text2);font-size:.72rem">'+t.nome+'</span>':'')+'</p></div>'+(prefix==='t'?'<button class="agenda-delete" onclick="deleteAppointment(\''+a.id+'\',\''+ds+'\')">×</button>':''  )+(prefix==='admin'?'<button class="agenda-delete" title="Apagar sessão" onclick="deleteAppointmentAdmin(\''+a.id+'\',\''+ds+'\')">×</button>':'')+'</div>';}).join('');
 }
 function buildUpcoming(prefix){
   const upEl=document.getElementById(prefix==='admin'?'admin-upcoming':'t-upcoming');if(!upEl)return;
@@ -1793,6 +1793,18 @@ async function addAppointment(){
   document.getElementById('appt-obs').value='';updateMetrics();buildCal('t');showDayAgenda('t',ds);buildUpcoming('t');showToast('Sessão agendada!');
 }
 async function deleteAppointment(aid,ds){await dbDelete('agendamentos',aid);appointments=appointments.filter(a=>a.id!==aid);updateMetrics();buildCal('t');showDayAgenda('t',ds);buildUpcoming('t');showToast('Removido.');}
+async function deleteAppointmentAdmin(aid,ds){
+  const a=appointments.find(x=>x.id===aid);
+  const p=a?patients.find(x=>x.id===a.patientId):null;
+  if(!confirm('Apagar sessão'+(p?' de '+p.nome:'')+' às '+(a?a.time:'')+'?'))return;
+  await dbDelete('agendamentos',aid);
+  appointments=appointments.filter(x=>x.id!==aid);
+  updateMetrics();
+  buildCal('admin');
+  showDayAgenda('admin',ds);
+  buildUpcoming('admin');
+  showToast('Sessão removida.');
+}
 function populateApptSelect(){const sel=document.getElementById('appt-patient');if(!sel)return;sel.innerHTML='<option value="">— Selecione —</option>';(currentTherapist?patients.filter(p=>p.therapistId===currentTherapist.id):patients).forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.nome;sel.appendChild(o);});}
 
 // ══ DEVOLUTIVAS ══
