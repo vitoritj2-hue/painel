@@ -423,7 +423,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
     <button class="tab-btn" onclick="switchTab('admin','terapeutas',this);renderTherapistAdmin()">Terapeutas</button>
     <button class="tab-btn" onclick="switchTab('admin','agenda',this);initCal('admin');populateAdminAgendaFilter()">Agenda</button>
     <button class="tab-btn" onclick="switchTab('admin','relatorio',this);renderRelatorioList('admin')">Relatórios</button>
-    <button class="tab-btn" onclick="switchTab('admin','contrato',this);populateContractSelect('admin')">Contrato</button>
+    <button class="tab-btn" onclick="switchTab('admin','contrato',this);populateContractSelect('admin');initSignCanvas('ac-sign-canvas');initSignCanvas('ac-sign-canvas-t');loadContratos()">Contrato</button>
   </div>
   <div class="page-content">
 
@@ -564,13 +564,36 @@ tr:hover td{background:rgba(255,255,255,.015)}
           <h3>1. Objeto</h3><p>6 sessões individuais de 50 minutos.</p>
           <h3>2. Cancelamento</h3><p>Comunicar com 24h de antecedência.</p>
           <h3>3. Sigilo</h3><p>Sigilo absoluto conforme o Código de Ética Profissional.</p>
-          <div class="sign-area"><div class="sign-block"><div class="sign-line"></div><div class="sign-label" id="ac-sign-paciente">Paciente</div></div><div class="sign-block"><div class="sign-line"></div><div class="sign-label">Terapeuta</div></div></div>
+          <div class="sign-area">
+            <div class="sign-block">
+              <div style="font-size:.72rem;font-weight:600;color:var(--text2);margin-bottom:6px">Assinatura do Paciente</div>
+              <canvas id="ac-sign-canvas" width="280" height="100" style="border:1.5px solid var(--border2);border-radius:8px;background:var(--bg2);cursor:crosshair;touch-action:none;width:100%"></canvas>
+              <div style="display:flex;gap:8px;margin-top:6px;justify-content:center">
+                <button onclick="clearCanvas('ac-sign-canvas')" style="font-size:.7rem;background:none;border:1px solid var(--border2);color:var(--text3);border-radius:6px;padding:3px 10px;cursor:pointer">Limpar</button>
+              </div>
+              <div class="sign-label" id="ac-sign-paciente">Paciente</div>
+            </div>
+            <div class="sign-block">
+              <div style="font-size:.72rem;font-weight:600;color:var(--text2);margin-bottom:6px">Assinatura do Terapeuta</div>
+              <canvas id="ac-sign-canvas-t" width="280" height="100" style="border:1.5px solid var(--border2);border-radius:8px;background:var(--bg2);cursor:crosshair;touch-action:none;width:100%"></canvas>
+              <div style="display:flex;gap:8px;margin-top:6px;justify-content:center">
+                <button onclick="clearCanvas('ac-sign-canvas-t')" style="font-size:.7rem;background:none;border:1px solid var(--border2);color:var(--text3);border-radius:6px;padding:3px 10px;cursor:pointer">Limpar</button>
+              </div>
+              <div class="sign-label">Terapeuta</div>
+            </div>
+          </div>
         </div>
-        <div style="display:flex;gap:10px;margin-top:14px;justify-content:flex-end">
+        <div style="display:flex;gap:10px;margin-top:14px;justify-content:flex-end;flex-wrap:wrap">
           <button class="btn-secondary" onclick="clearContract('admin')">Limpar</button>
-          <button class="btn-secondary" onclick="exportContractPDF('admin')" style="color:var(--teal);border-color:rgba(45,212,170,.3)">Exportar PDF</button>
-          <button class="btn-primary" onclick="showToast('Contrato registrado!')">Registrar</button>
+          <button class="btn-secondary" onclick="exportContractPDF('admin')" style="color:var(--teal);border-color:rgba(45,212,170,.3)">⬇ Exportar PDF</button>
+          <button class="btn-primary" onclick="registrarContrato('admin')">✓ Registrar contrato</button>
         </div>
+      </div>
+
+      <!-- Lista de contratos registrados -->
+      <div style="margin-top:28px">
+        <div class="page-title" style="font-size:1rem;margin-bottom:12px">Contratos Registrados</div>
+        <div id="admin-contratos-list" style="display:flex;flex-direction:column;gap:10px"></div>
       </div>
     </div>
 
@@ -1948,7 +1971,109 @@ function closeNotifPanel(scope){document.getElementById('notif-panel-'+scope).cl
 // ══ EXPORT CSV ══
 function exportCSV(){if(!patients.length){showToast('Nenhum paciente.');return;}const h=['Nome','Tipo','Sexo','Nasc.','Tel','Email','Cidade','Queixa','Sintomas','Renda','Terapeuta','Sessões','Status'];const rows=patients.map(p=>{const t=therapists.find(x=>x.id===p.therapistId);return[p.nome,p.tipo,p.sexo||'',p.nasc||'',p.tel,p.email||'',p.cidade||'','"'+p.queixa.replace(/"/g,'""')+'"','"'+(p.sintomas||[]).join(', ')+'"',p.renda||'',t?t.nome:'Não atribuído',p.sessoes+'/6',p.status];});const csv=[h,...rows].map(r=>r.join(';')).join('\n');const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='pacientes_'+new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')+'.csv';a.click();URL.revokeObjectURL(url);showToast('CSV exportado!');}
 
-function exportContractPDF(scope){const pfx=scope==='admin'?'ac':'tc';const nome=document.getElementById(pfx+'-nome')?.value||'—';const terapeuta=document.getElementById(pfx+'-terapeuta')?.value||'—';const data=document.getElementById(pfx+'-data')?.value||'';const valor=document.getElementById(pfx+'-valor')?.value||'—';const tel=document.getElementById(pfx+'-tel')?.value||'—';const email=document.getElementById(pfx+'-email')?.value||'—';const sp='Paciente / Responsável';const st=scope==='admin'?'Terapeuta':(document.getElementById('tc-sign-terapeuta')?.textContent||'Terapeuta');const df=data?data.split('-').reverse().join('/'):'___/___/______';const html='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:Georgia,serif;color:#1a1a2e;padding:40px 60px;font-size:13px}.logo-line{width:40px;height:3px;background:linear-gradient(90deg,#4f8ef7,#2dd4aa);margin:0 auto 14px;border-radius:2px}h1{text-align:center;font-size:18px;margin-bottom:4px}.sub{text-align:center;font-size:11px;color:#555;margin-bottom:2px}.sub2{text-align:center;font-size:10px;color:#4f8ef7;font-style:italic;margin-bottom:20px}.fields{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:20px 0;padding:14px;background:#f8fafc;border:1px solid #e0e8f0;border-radius:6px}.field label{font-size:9px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px}.field span{font-size:12px;font-weight:600;color:#1a1a2e;border-bottom:1px solid #cdd5e0;display:block;padding-bottom:4px}h3{font-size:12px;font-weight:700;margin:16px 0 5px;padding-left:8px;border-left:3px solid #4f8ef7}p{font-size:12px;color:#444;margin-left:8px}.sign-area{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:40px}.sign-block{text-align:center}.sign-line{border-bottom:1.5px solid #1a1a2e;margin-bottom:8px;height:44px}.sign-label{font-size:11px;color:#666}.footer{margin-top:32px;text-align:center;font-size:9px;color:#aaa;border-top:1px solid #e0e8f0;padding-top:12px}</style></head><body><div class="logo-line"></div><h1>Contrato de Prestação de Serviços Terapêuticos</h1><p class="sub">Projeto Social Transformar</p><p class="sub2">Abordagem Cristã</p><div class="fields"><div class="field"><label>Paciente</label><span>'+nome+'</span></div><div class="field"><label>Terapeuta</label><span>'+terapeuta+'</span></div><div class="field"><label>Data de Início</label><span>'+df+'</span></div><div class="field"><label>Valor por Sessão</label><span>R$ '+valor+'</span></div><div class="field"><label>Telefone</label><span>'+tel+'</span></div><div class="field"><label>E-mail</label><span>'+email+'</span></div></div><h3>1. Objeto</h3><p>6 sessões individuais de 50 minutos.</p><h3>2. Cancelamento</h3><p>Com mínimo 24h de antecedência.</p><h3>3. Sigilo</h3><p>Sigilo absoluto conforme o Código de Ética Profissional.</p><div class="sign-area"><div class="sign-block"><div class="sign-line"></div><div class="sign-label">'+sp+'</div></div><div class="sign-block"><div class="sign-line"></div><div class="sign-label">'+st+'</div></div></div><div class="footer">Projeto Social Transformar · Abordagem Cristã · '+new Date().toLocaleDateString('pt-BR')+'</div></body></html>';const win=window.open('','_blank');if(!win){showToast('Permita pop-ups.');return;}win.document.write(html);win.document.close();win.onload=()=>win.print();}
+// ══ ASSINATURA (CANVAS) ══
+function initSignCanvas(canvasId){
+  const canvas=document.getElementById(canvasId);
+  if(!canvas||canvas._signInit)return;
+  canvas._signInit=true;
+  const ctx=canvas.getContext('2d');
+  let drawing=false,lx=0,ly=0;
+  function pos(e){
+    const r=canvas.getBoundingClientRect();
+    const scaleX=canvas.width/r.width,scaleY=canvas.height/r.height;
+    const src=e.touches?e.touches[0]:e;
+    return{x:(src.clientX-r.left)*scaleX,y:(src.clientY-r.top)*scaleY};
+  }
+  function start(e){e.preventDefault();drawing=true;const p=pos(e);lx=p.x;ly=p.y;}
+  function move(e){e.preventDefault();if(!drawing)return;const p=pos(e);ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(p.x,p.y);ctx.strokeStyle='#1a1a2e';ctx.lineWidth=2;ctx.lineCap='round';ctx.stroke();lx=p.x;ly=p.y;}
+  function end(){drawing=false;}
+  canvas.addEventListener('mousedown',start);canvas.addEventListener('mousemove',move);canvas.addEventListener('mouseup',end);canvas.addEventListener('mouseleave',end);
+  canvas.addEventListener('touchstart',start,{passive:false});canvas.addEventListener('touchmove',move,{passive:false});canvas.addEventListener('touchend',end);
+}
+function clearCanvas(id){const c=document.getElementById(id);if(!c)return;c.getContext('2d').clearRect(0,0,c.width,c.height);}
+function isCanvasEmpty(id){const c=document.getElementById(id);if(!c)return true;return!c.getContext('2d').getImageData(0,0,c.width,c.height).data.some(v=>v!==0);}
+function getCanvasDataURL(id){const c=document.getElementById(id);return c?c.toDataURL('image/png'):null;}
+
+// ══ CONTRATOS ══
+let contratos=[];
+async function loadContratos(){
+  try{
+    const{data,error}=await db.from('contratos').select('*').order('created_at',{ascending:false});
+    if(!error&&data){contratos=data;renderContratosList();}
+  }catch(e){}
+}
+function renderContratosList(){
+  const el=document.getElementById('admin-contratos-list');if(!el)return;
+  if(!contratos.length){el.innerHTML='<div style="padding:16px;text-align:center;color:var(--text3);font-size:.82rem">Nenhum contrato registrado ainda.</div>';return;}
+  el.innerHTML=contratos.map(c=>{
+    const dataFmt=c.created_at?new Date(c.created_at).toLocaleDateString('pt-BR'):'—';
+    const temSignP=!!c.assinatura_paciente,temSignT=!!c.assinatura_terapeuta;
+    return'<div style="background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">'
+      +'<div style="flex:1;min-width:180px">'
+      +'<div style="font-size:.86rem;font-weight:600;color:var(--text)">'+(c.nome_paciente||'—')+'</div>'
+      +'<div style="font-size:.72rem;color:var(--text3);margin-top:2px">'+(c.nome_terapeuta||'—')+' · '+dataFmt+'</div>'
+      +'<div style="display:flex;gap:6px;margin-top:6px">'
+      +'<span style="font-size:.64rem;padding:2px 8px;border-radius:50px;background:'+(temSignP?'rgba(45,212,170,.12)':'rgba(90,106,138,.1)')+';border:1px solid '+(temSignP?'rgba(45,212,170,.3)':'var(--border2)')+';color:'+(temSignP?'var(--teal)':'var(--text3)')+'">✍ Paciente '+(temSignP?'✓':'pendente')+'</span>'
+      +'<span style="font-size:.64rem;padding:2px 8px;border-radius:50px;background:'+(temSignT?'rgba(45,212,170,.12)':'rgba(90,106,138,.1)')+';border:1px solid '+(temSignT?'rgba(45,212,170,.3)':'var(--border2)')+';color:'+(temSignT?'var(--teal)':'var(--text3)')+'">✍ Terapeuta '+(temSignT?'✓':'pendente')+'</span>'
+      +'</div></div>'
+      +'<div style="display:flex;gap:8px;flex-shrink:0">'
+      +'<button class="btn-secondary" style="font-size:.74rem;padding:6px 14px" onclick="exportContratoPDF(''+c.id+'')">⬇ PDF</button>'
+      +'<button class="link-btn" style="color:var(--red);font-size:.74rem" onclick="deletarContrato(''+c.id+'')">Apagar</button>'
+      +'</div></div>';
+  }).join('');
+}
+async function registrarContrato(scope){
+  const pfx=scope==='admin'?'ac':'tc';
+  const nome=document.getElementById(pfx+'-nome')?.value?.trim();
+  if(!nome){showToast('Informe o nome do paciente.');return;}
+  const terapeuta=document.getElementById(pfx+'-terapeuta')?.value?.trim()||'—';
+  const data=document.getElementById(pfx+'-data')?.value||'';
+  const valor=document.getElementById(pfx+'-valor')?.value||'—';
+  const tel=document.getElementById(pfx+'-tel')?.value||'—';
+  const email=document.getElementById(pfx+'-email')?.value||'—';
+  const signP=isCanvasEmpty(pfx+'-sign-canvas')?null:getCanvasDataURL(pfx+'-sign-canvas');
+  const signT=isCanvasEmpty(pfx+'-sign-canvas-t')?null:getCanvasDataURL(pfx+'-sign-canvas-t');
+  const payload={nome_paciente:nome,nome_terapeuta:terapeuta,data_inicio:data||null,valor,tel,email,assinatura_paciente:signP,assinatura_terapeuta:signT,created_at:new Date().toISOString()};
+  const{data:res,error}=await db.from('contratos').insert([payload]).select().single();
+  if(error){console.error(error);showToast('Erro ao registrar contrato.');return;}
+  contratos.unshift(res);renderContratosList();showToast('✓ Contrato registrado!');clearContract(scope);
+}
+async function deletarContrato(id){
+  if(!confirm('Apagar este contrato?'))return;
+  const{error}=await db.from('contratos').delete().eq('id',id);
+  if(error){showToast('Erro ao apagar.');return;}
+  contratos=contratos.filter(c=>c.id!==id);renderContratosList();showToast('Contrato apagado.');
+}
+function exportContratoPDF(id){
+  const c=contratos.find(x=>x.id===id);if(!c){showToast('Contrato não encontrado.');return;}
+  const df=c.data_inicio?c.data_inicio.split('-').reverse().join('/'):'___/___/______';
+  const signPHTML=c.assinatura_paciente?'<img src="'+c.assinatura_paciente+'" style="max-width:220px;max-height:80px;display:block;margin:0 auto">':'<div style="height:60px"></div>';
+  const signTHTML=c.assinatura_terapeuta?'<img src="'+c.assinatura_terapeuta+'" style="max-width:220px;max-height:80px;display:block;margin:0 auto">':'<div style="height:60px"></div>';
+  gerarPDFContrato({nome_paciente:c.nome_paciente,nome_terapeuta:c.nome_terapeuta,df,valor:c.valor,tel:c.tel,email:c.email,signPHTML,signTHTML});
+}
+function exportContractPDF(scope){
+  const pfx=scope==='admin'?'ac':'tc';
+  const nome=document.getElementById(pfx+'-nome')?.value||'—';
+  const terapeuta=document.getElementById(pfx+'-terapeuta')?.value||'—';
+  const data=document.getElementById(pfx+'-data')?.value||'';
+  const valor=document.getElementById(pfx+'-valor')?.value||'—';
+  const tel=document.getElementById(pfx+'-tel')?.value||'—';
+  const email=document.getElementById(pfx+'-email')?.value||'—';
+  const df=data?data.split('-').reverse().join('/'):'___/___/______';
+  const signPHTML=isCanvasEmpty(pfx+'-sign-canvas')?'<div style="height:60px"></div>':'<img src="'+getCanvasDataURL(pfx+'-sign-canvas')+'" style="max-width:220px;max-height:80px;display:block;margin:0 auto">';
+  const signTHTML=isCanvasEmpty(pfx+'-sign-canvas-t')?'<div style="height:60px"></div>':'<img src="'+getCanvasDataURL(pfx+'-sign-canvas-t')+'" style="max-width:220px;max-height:80px;display:block;margin:0 auto">';
+  const st=scope==='admin'?terapeuta:(document.getElementById('tc-sign-terapeuta')?.textContent||'Terapeuta');
+  gerarPDFContrato({nome_paciente:nome,nome_terapeuta:st,df,valor,tel,email,signPHTML,signTHTML});
+}
+function gerarPDFContrato({nome_paciente,nome_terapeuta,df,valor,tel,email,signPHTML,signTHTML}){
+  const html='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:Georgia,serif;color:#1a1a2e;padding:40px 60px;font-size:13px}.logo-line{width:40px;height:3px;background:linear-gradient(90deg,#4f8ef7,#2dd4aa);margin:0 auto 14px;border-radius:2px}h1{text-align:center;font-size:18px;margin-bottom:4px}.sub{text-align:center;font-size:11px;color:#555;margin-bottom:2px}.sub2{text-align:center;font-size:10px;color:#4f8ef7;font-style:italic;margin-bottom:20px}.fields{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:20px 0;padding:14px;background:#f8fafc;border:1px solid #e0e8f0;border-radius:6px}.field label{font-size:9px;font-weight:700;text-transform:uppercase;color:#888;display:block;margin-bottom:3px}.field span{font-size:12px;font-weight:600;color:#1a1a2e;border-bottom:1px solid #cdd5e0;display:block;padding-bottom:4px}h3{font-size:12px;font-weight:700;margin:16px 0 5px;padding-left:8px;border-left:3px solid #4f8ef7}p{font-size:12px;color:#444;margin-left:8px}.sign-area{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:40px}.sign-block{text-align:center}.sign-line{border-bottom:1.5px solid #1a1a2e;margin-bottom:8px;min-height:80px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:4px}.sign-label{font-size:11px;color:#666;margin-top:6px}.footer{margin-top:32px;text-align:center;font-size:9px;color:#aaa;border-top:1px solid #e0e8f0;padding-top:12px}</style></head><body>'
+    +'<div class="logo-line"></div><h1>Contrato de Prestação de Serviços Terapêuticos</h1><p class="sub">Projeto Social Transformar</p><p class="sub2">Abordagem Cristã</p>'
+    +'<div class="fields"><div class="field"><label>Paciente</label><span>'+nome_paciente+'</span></div><div class="field"><label>Terapeuta</label><span>'+nome_terapeuta+'</span></div><div class="field"><label>Data de Início</label><span>'+df+'</span></div><div class="field"><label>Valor por Sessão</label><span>R$ '+valor+'</span></div><div class="field"><label>Telefone</label><span>'+tel+'</span></div><div class="field"><label>E-mail</label><span>'+email+'</span></div></div>'
+    +'<h3>1. Objeto</h3><p>6 sessões individuais de 50 minutos.</p><h3>2. Cancelamento</h3><p>Comunicar com no mínimo 24h de antecedência.</p><h3>3. Sigilo</h3><p>Sigilo absoluto conforme o Código de Ética Profissional.</p>'
+    +'<div class="sign-area"><div class="sign-block"><div class="sign-line">'+signPHTML+'</div><div class="sign-label">Paciente / Responsável</div></div><div class="sign-block"><div class="sign-line">'+signTHTML+'</div><div class="sign-label">'+nome_terapeuta+'</div></div></div>'
+    +'<div class="footer">Projeto Social Transformar · Abordagem Cristã · '+new Date().toLocaleDateString('pt-BR')+'</div></body></html>';
+  const win=window.open('','_blank');if(!win){showToast('Permita pop-ups.');return;}win.document.write(html);win.document.close();win.onload=()=>win.print();
+}
 
 
 // ══ DISPONIBILIDADE ══
