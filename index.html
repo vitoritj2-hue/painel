@@ -423,7 +423,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
     <button class="tab-btn" onclick="switchTab('admin','terapeutas',this);renderTherapistAdmin()">Terapeutas</button>
     <button class="tab-btn" onclick="switchTab('admin','agenda',this);initCal('admin');populateAdminAgendaFilter()">Agenda</button>
     <button class="tab-btn" onclick="switchTab('admin','relatorio',this);renderRelatorioList('admin')">Relatórios</button>
-    <button class="tab-btn" onclick="switchTab('admin','contrato',this);populateContractSelect('admin');initSignCanvas('ac-sign-canvas');initSignCanvas('ac-sign-canvas-t');loadContratos()">Contrato</button>
+    <button class="tab-btn" onclick="switchTab('admin','contrato',this);renderConsentimentos()">Consentimentos</button>
   </div>
   <div class="page-content">
 
@@ -553,48 +553,9 @@ tr:hover td{background:rgba(255,255,255,.015)}
     </div>
 
     <div class="page" id="page-admin-contrato">
-      <div class="page-title">Gerar Contrato</div>
-      <div class="contract-wrap">
-        <div class="patient-selector"><label>Preencher automaticamente:</label><select id="admin-contract-select" onchange="fillContract('admin',this.value)"><option value="">— Selecione —</option></select></div>
-        <div class="auto-banner" id="admin-auto-banner">✓ <span id="admin-auto-text"></span></div>
-        <div class="contract-doc">
-          <h1>Contrato de Prestação de Serviços Terapêuticos</h1>
-          <p class="sub">Projeto Social Transformar</p><p class="sub2">Abordagem Cristã</p>
-          <div class="cfields"><div class="cf"><label>Nome do Paciente</label><input type="text" id="ac-nome"></div><div class="cf"><label>Terapeuta</label><input type="text" id="ac-terapeuta"></div><div class="cf"><label>Data de Início</label><input type="date" id="ac-data"></div><div class="cf"><label>Valor (R$)</label><input type="text" id="ac-valor" placeholder="0,00"></div><div class="cf"><label>Telefone</label><input type="text" id="ac-tel"></div><div class="cf"><label>E-mail</label><input type="text" id="ac-email"></div></div>
-          <h3>1. Objeto</h3><p>6 sessões individuais de 50 minutos.</p>
-          <h3>2. Cancelamento</h3><p>Comunicar com 24h de antecedência.</p>
-          <h3>3. Sigilo</h3><p>Sigilo absoluto conforme o Código de Ética Profissional.</p>
-          <div class="sign-area">
-            <div class="sign-block">
-              <div style="font-size:.72rem;font-weight:600;color:var(--text2);margin-bottom:6px">Assinatura do Paciente</div>
-              <canvas id="ac-sign-canvas" width="280" height="100" style="border:1.5px solid var(--border2);border-radius:8px;background:var(--bg2);cursor:crosshair;touch-action:none;width:100%"></canvas>
-              <div style="display:flex;gap:8px;margin-top:6px;justify-content:center">
-                <button onclick="clearCanvas('ac-sign-canvas')" style="font-size:.7rem;background:none;border:1px solid var(--border2);color:var(--text3);border-radius:6px;padding:3px 10px;cursor:pointer">Limpar</button>
-              </div>
-              <div class="sign-label" id="ac-sign-paciente">Paciente</div>
-            </div>
-            <div class="sign-block">
-              <div style="font-size:.72rem;font-weight:600;color:var(--text2);margin-bottom:6px">Assinatura do Terapeuta</div>
-              <canvas id="ac-sign-canvas-t" width="280" height="100" style="border:1.5px solid var(--border2);border-radius:8px;background:var(--bg2);cursor:crosshair;touch-action:none;width:100%"></canvas>
-              <div style="display:flex;gap:8px;margin-top:6px;justify-content:center">
-                <button onclick="clearCanvas('ac-sign-canvas-t')" style="font-size:.7rem;background:none;border:1px solid var(--border2);color:var(--text3);border-radius:6px;padding:3px 10px;cursor:pointer">Limpar</button>
-              </div>
-              <div class="sign-label">Terapeuta</div>
-            </div>
-          </div>
-        </div>
-        <div style="display:flex;gap:10px;margin-top:14px;justify-content:flex-end;flex-wrap:wrap">
-          <button class="btn-secondary" onclick="clearContract('admin')">Limpar</button>
-          <button class="btn-secondary" onclick="exportContractPDF('admin')" style="color:var(--teal);border-color:rgba(45,212,170,.3)">⬇ Exportar PDF</button>
-          <button class="btn-primary" onclick="registrarContrato('admin')">✓ Registrar contrato</button>
-        </div>
-      </div>
-
-      <!-- Lista de contratos registrados -->
-      <div style="margin-top:28px">
-        <div class="page-title" style="font-size:1rem;margin-bottom:12px">Contratos Registrados</div>
-        <div id="admin-contratos-list" style="display:flex;flex-direction:column;gap:10px"></div>
-      </div>
+      <div class="page-title">Assinaturas de Consentimento</div>
+      <div style="font-size:.8rem;color:var(--text3);margin-bottom:16px">Nome digitado pelo paciente no campo de consentimento da ficha de triagem.</div>
+      <div id="admin-consentimentos-list" style="display:flex;flex-direction:column;gap:10px"></div>
     </div>
 
   </div>
@@ -2002,7 +1963,41 @@ async function loadContratos(){
     if(!error&&data){contratos=data;renderContratosList();}
   }catch(e){}
 }
-function renderContratosList(){
+function renderConsentimentos(){
+  const el=document.getElementById('admin-consentimentos-list');
+  if(!el)return;
+  const comAssin=patients.filter(p=>p.assinatura_consentimento);
+  const semAssin=patients.filter(p=>!p.assinatura_consentimento);
+  if(!patients.length){el.innerHTML='<div style="padding:20px;text-align:center;color:var(--text3)">Nenhum paciente cadastrado.</div>';return;}
+  const total=patients.length;
+  const assinados=comAssin.length;
+  el.innerHTML=
+    `<div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+      <div style="background:rgba(45,212,170,.1);border:1px solid rgba(45,212,170,.3);border-radius:10px;padding:12px 20px;font-size:.82rem;color:var(--teal)">✅ ${assinados} assinado${assinados!==1?'s':''}</div>
+      <div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:10px;padding:12px 20px;font-size:.82rem;color:var(--red)">⚠️ ${semAssin.length} sem assinatura</div>
+      <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:12px 20px;font-size:.82rem;color:var(--text2)">Total: ${total}</div>
+    </div>`
+    +(comAssin.length?'<div style="font-size:.74rem;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Assinados</div>'
+      +comAssin.map(p=>`<div style="background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <div style="flex:1;min-width:160px">
+          <div style="font-size:.86rem;font-weight:600;color:var(--text)">${p.nome}</div>
+          <div style="font-size:.72rem;color:var(--text3);margin-top:2px">${p.tipo} · ${p.data}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;background:rgba(45,212,170,.08);border:1px solid rgba(45,212,170,.25);border-radius:8px;padding:8px 14px">
+          <span style="font-size:.78rem;color:var(--text3)">✍</span>
+          <span style="font-size:.84rem;font-weight:600;color:var(--teal)">${p.assinatura_consentimento}</span>
+        </div>
+        <button class="link-btn" style="font-size:.74rem" onclick="openFicha('${p.id}')">Ver ficha</button>
+      </div>`).join(''):'')
+    +(semAssin.length?'<div style="font-size:.74rem;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin:16px 0 8px">Sem assinatura</div>'
+      +semAssin.map(p=>`<div style="background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:14px;opacity:.7">
+        <div style="flex:1"><div style="font-size:.84rem;color:var(--text)">${p.nome}</div><div style="font-size:.7rem;color:var(--text3)">${p.tipo} · ${p.data}</div></div>
+        <span style="font-size:.72rem;color:var(--red)">Não preenchido</span>
+        <button class="link-btn" style="font-size:.74rem" onclick="openFicha('${p.id}')">Ver ficha</button>
+      </div>`).join(''):'');
+}
+
+function renderContratosList(){}
   const el=document.getElementById('admin-contratos-list');if(!el)return;
   if(!contratos.length){el.innerHTML='<div style="padding:16px;text-align:center;color:var(--text3);font-size:.82rem">Nenhum contrato registrado ainda.</div>';return;}
   el.innerHTML=contratos.map(c=>{
