@@ -1998,25 +1998,6 @@ function renderConsentimentos(){
 }
 
 function renderContratosList(){}
-  const el=document.getElementById('admin-contratos-list');if(!el)return;
-  if(!contratos.length){el.innerHTML='<div style="padding:16px;text-align:center;color:var(--text3);font-size:.82rem">Nenhum contrato registrado ainda.</div>';return;}
-  el.innerHTML=contratos.map(c=>{
-    const dataFmt=c.created_at?new Date(c.created_at).toLocaleDateString('pt-BR'):'—';
-    const temSignP=!!c.assinatura_paciente,temSignT=!!c.assinatura_terapeuta;
-    return'<div style="background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">'
-      +'<div style="flex:1;min-width:180px">'
-      +'<div style="font-size:.86rem;font-weight:600;color:var(--text)">'+(c.nome_paciente||'—')+'</div>'
-      +'<div style="font-size:.72rem;color:var(--text3);margin-top:2px">'+(c.nome_terapeuta||'—')+' · '+dataFmt+'</div>'
-      +'<div style="display:flex;gap:6px;margin-top:6px">'
-      +'<span style="font-size:.64rem;padding:2px 8px;border-radius:50px;background:'+(temSignP?'rgba(45,212,170,.12)':'rgba(90,106,138,.1)')+';border:1px solid '+(temSignP?'rgba(45,212,170,.3)':'var(--border2)')+';color:'+(temSignP?'var(--teal)':'var(--text3)')+'">✍ Paciente '+(temSignP?'✓':'pendente')+'</span>'
-      +'<span style="font-size:.64rem;padding:2px 8px;border-radius:50px;background:'+(temSignT?'rgba(45,212,170,.12)':'rgba(90,106,138,.1)')+';border:1px solid '+(temSignT?'rgba(45,212,170,.3)':'var(--border2)')+';color:'+(temSignT?'var(--teal)':'var(--text3)')+'">✍ Terapeuta '+(temSignT?'✓':'pendente')+'</span>'
-      +'</div></div>'
-      +'<div style="display:flex;gap:8px;flex-shrink:0">'
-      +'<button class="btn-secondary" style="font-size:.74rem;padding:6px 14px" onclick="exportContratoPDF(\''+c.id+'\')">⬇ PDF</button>'
-      +'<button class="link-btn" style="color:var(--red);font-size:.74rem" onclick="deletarContrato(\''+c.id+'\')">Apagar</button>'
-      +'</div></div>';
-  }).join('');
-}
 async function registrarContrato(scope){
   const pfx=scope==='admin'?'ac':'tc';
   const nome=document.getElementById(pfx+'-nome')?.value?.trim();
