@@ -1023,6 +1023,7 @@ function startAdminNotifPolling(){
       addAdminNotification('casal','ni-green','Nova ficha de casal',c.p1_nome+' & '+c.p2_nome);
     }).subscribe();
 }
+let _realtimeChannelT=null;
 let _realtimeChannelAdmin=null;
 let _knownFichasIds=new Set();
 function stopAdminNotifPolling(){
