@@ -440,7 +440,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
         <!-- coluna direita: status -->
         <div style="display:flex;flex-direction:column;gap:10px">
           <div class="metric-card" style="flex:1"><div class="metric-label" style="color:var(--yellow)">Em espera</div><div class="metric-value" id="m-espera">0</div><div class="metric-accent" style="background:var(--yellow)"></div></div>
-          <div class="metric-card" style="flex:1"><div class="metric-label" style="color:var(--blue)">Em andamento</div><div class="metric-value" id="m-andamento">0</div><div class="metric-accent"></div></div>
+          <div class="metric-card" style="flex:1"><div class="metric-label" style="color:var(--blue)">🔵 Em andamento</div><div class="metric-value" id="m-andamento">0</div><div class="metric-accent"></div></div>
           <div class="metric-card" style="flex:1"><div class="metric-label" style="color:var(--teal)">Finalizados</div><div class="metric-value" id="m-final">0</div><div class="metric-accent"></div></div>
           <div class="metric-card" style="flex:1"><div class="metric-label" style="color:var(--red)">Pausados</div><div class="metric-value" id="m-pausado">0</div><div class="metric-accent" style="background:var(--red)"></div></div>
         </div>
@@ -453,10 +453,10 @@ tr:hover td{background:rgba(255,255,255,.015)}
         <div class="search-filters">
           <span class="filter-label">Status:</span>
           <span class="filter-chip active-all" id="chip-all" onclick="setStatusFilter('all')">Todos</span>
-          <span class="filter-chip" id="chip-espera" onclick="setStatusFilter('espera')">Espera</span>
-          <span class="filter-chip" id="chip-andamento" onclick="setStatusFilter('andamento')">Em andamento</span>
-          <span class="filter-chip" id="chip-pausado" onclick="setStatusFilter('pausado')">Pausado</span>
-          <span class="filter-chip" id="chip-finalizado" onclick="setStatusFilter('finalizado')">Finalizado</span>
+          <span class="filter-chip" id="chip-espera" onclick="setStatusFilter('espera')">⏳ Espera</span>
+          <span class="filter-chip" id="chip-andamento" onclick="setStatusFilter('andamento')">🔵 Em andamento</span>
+          <span class="filter-chip" id="chip-pausado" onclick="setStatusFilter('pausado')">⏸️ Pausado</span>
+          <span class="filter-chip" id="chip-finalizado" onclick="setStatusFilter('finalizado')">✅ Finalizado</span>
         </div>
         <div class="search-filters" style="margin-top:6px">
           <span class="filter-label">Tipo:</span>
@@ -1571,7 +1571,7 @@ function updateMetrics(){
   document.getElementById('m-pausado').textContent=patients.filter(p=>p.status==='pausado').length;
   document.getElementById('m-terapeutas').textContent=therapists.length;
 }
-function statusBadge(s){return{espera:'<span class="sb sb-yellow"><span class="sd sd-y"></span>Espera</span>',andamento:'<span class="sb sb-blue"><span class="sd sd-b"></span>Em andamento</span>',pausado:'<span class="sb sb-red"><span class="sd sd-r"></span>Pausado</span>',finalizado:'<span class="sb sb-green"><span class="sd sd-g"></span>Finalizado</span>'}[s]||'<span class="sb sb-yellow"><span class="sd sd-y"></span>Espera</span>';}
+function statusBadge(s){return{espera:'<span class="sb sb-yellow">⏳ Espera</span>',andamento:'<span class="sb sb-blue">🔵 Em andamento</span>',pausado:'<span class="sb sb-red">⏸️ Pausado</span>',finalizado:'<span class="sb sb-green">✅ Finalizado</span>'}[s]||'<span class="sb sb-yellow">⏳ Espera</span>';}
 function setStatusFilter(s){activeStatusFilter=s;['all','espera','andamento','pausado','finalizado'].forEach(x=>{const c=document.getElementById('chip-'+x);if(!c)return;c.className='filter-chip';if(x===s)c.classList.add('active-'+x);});applyFilters();}
 function applyFilters(){
   const q=(document.getElementById('search-q')?.value||'').trim();
@@ -1638,7 +1638,7 @@ function renderAdminTable(list,q){
   const wrap=document.getElementById('admin-load-more-wrap');if(wrap)wrap.style.display=(!q&&_hasMorePatients)?'block':'none';
   if(!list.length){tb.innerHTML='<tr class="empty-row"><td colspan="5">Nenhum paciente encontrado.</td></tr>';return;}
   const sc={espera:'var(--yellow)',andamento:'var(--blue)',pausado:'var(--red)',finalizado:'var(--teal)'};
-  const sl={espera:'◔',andamento:'●',pausado:'⏸',finalizado:'✓'};
+  const sl={espera:'⏳',andamento:'🔵',pausado:'⏸️',finalizado:'✅'};
   const bc={espera:'ay',andamento:'ab',pausado:'ar',finalizado:'ag'};
   tb.innerHTML=list.map(p=>{
     const t=therapists.find(x=>x.id===p.therapistId);
@@ -1784,7 +1784,7 @@ function renderTherapistCards(){
   if(!mine.length){c.innerHTML='<div class="empty-state"><div class="es-icon">◎</div><p>Nenhum paciente atribuído ainda.</p></div>';return;}
   c.innerHTML=mine.map(p=>{
     const pct=Math.round((p.sessoes/6)*100),ic={espera:'var(--yellow)',andamento:'var(--blue)',pausado:'var(--red)',finalizado:'var(--teal)'}[p.status]||'var(--yellow)',bc={espera:'ay',andamento:'ab',pausado:'ar',finalizado:'ag'};
-    const btns=['espera','andamento','pausado','finalizado'].map(s=>'<button class="sbt'+(p.status===s?' '+bc[s]:'')+'" title="'+(s==='espera'?'Espera':s==='andamento'?'Em andamento':s==='pausado'?'Pausado':'Finalizado')+'" onclick="setStatus(\''+p.id+'\',\''+s+'\')">'+(s==='espera'?'◔':s==='andamento'?'●':s==='pausado'?'⏸':'✓')+'</button>').join('');
+    const btns=['espera','andamento','pausado','finalizado'].map(s=>'<button class="sbt'+(p.status===s?' '+bc[s]:'')+'" title="'+(s==='espera'?'Espera':s==='andamento'?'Em andamento':s==='pausado'?'Pausado':'Finalizado')+'" onclick="setStatus(\''+p.id+'\',\''+s+'\')">'+(s==='espera'?'⏳':s==='andamento'?'🔵':s==='pausado'?'⏸️':'✅')+'</button>').join('');
     const next=appointments.filter(a=>a.patientId===p.id).sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time))[0];
     const dots=[1,2,3,4,5,6].map(i=>'<div class="sess-dot'+(i<=p.sessoes?' done':'')+(i===p.sessoes&&p.sessoes<6?' current':'')+'"></div>').join('');
     return'<div class="patient-card"><div class="pch"><div class="p-avatar">'+initials(p.nome)+'</div><div class="p-info"><h4>'+p.nome+'</h4><p>'+p.tipo+' · '+((p.sintomas||[])[0]||p.queixa.slice(0,22))+'</p></div><div class="p-ind" style="background:'+ic+'"></div></div>'
