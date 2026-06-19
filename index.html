@@ -21,7 +21,7 @@
 <meta property="og:type" content="website" />
 <meta property="og:url" content="https://painel-projetotransformar.vercel.app/" /><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Neon DB via Vercel Function -->
 <style>
 :root{--bg:#0a0f1e;--bg2:#111827;--bg3:#1a2235;--bg4:#222d42;--border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.12);--text:#f0f4ff;--text2:#8b9abd;--text3:#5a6a8a;--blue:#4f8ef7;--teal:#2dd4aa;--grad:linear-gradient(135deg,#4f8ef7,#2dd4aa);--green:#2dd4aa;--yellow:#f0b429;--red:#f56565;--obs:#718096;--shadow:0 4px 24px rgba(0,0,0,.4);--r:12px;--fs:15px;--lh:1.5;--sp:1}
 /* ── TEMA CLARO ── */
@@ -429,7 +429,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
 
     <div class="page active" id="page-admin-dashboard">
       <div class="page-title">Dashboard</div>
-      <div class="reset-banner"><span><span class="sync-badge">● Supabase</span></span><div style="display:flex;gap:8px"><button class="btn-secondary" style="font-size:.76rem;padding:6px 14px" onclick="refreshAdmin()">↻ Sincronizar</button></div></div>
+      <div class="reset-banner"><span><span class="sync-badge">● Neon</span></span><div style="display:flex;gap:8px"><button class="btn-secondary" style="font-size:.76rem;padding:6px 14px" onclick="refreshAdmin()">↻ Sincronizar</button></div></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
         <!-- coluna esquerda: volumes -->
         <div style="display:flex;flex-direction:column;gap:10px">
@@ -900,10 +900,35 @@ tr:hover td{background:rgba(255,255,255,.015)}
 
 <script>
 
-// ══ SUPABASE ══
-const SUPA_URL='https://efseuyyurajrmcrafaea.supabase.co';
-const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNtb3dtbWR1cXV6bXBxcGN1dHR3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcxNDIxNzIsImV4cCI6MjA5MjcxODE3Mn0.W4VKnwvlkdNwc0Ib7aRDMRwTlSyqa9pK2o0qWWu_Qj8';
-const db=window.supabase.createClient(SUPA_URL,SUPA_KEY);
+// ══ NEON DB ══
+const _api = async (body) => {
+  const r = await fetch('/api/db', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  return r.json();
+};
+const db = {
+  from: (table) => ({
+    select: () => ({
+      order: (field, {ascending}={}) => ({
+        range: (from, to) => _api({action:'select', table, orderField:field, order:ascending?'asc':'desc', offset:from, limit:to-from+1}),
+        then: (res, rej) => _api({action:'select', table, orderField:field, order:ascending?'asc':'desc'}).then(res).catch(rej)
+      }),
+      then: (res, rej) => _api({action:'select', table}).then(res).catch(rej)
+    }),
+    insert: (data) => ({
+      select: () => ({ single: () => _api({action:'insert', table, data}) }),
+      then: (res, rej) => _api({action:'insert', table, data}).then(res).catch(rej)
+    }),
+    update: (fields) => ({
+      eq: (col, val) => _api({action:'update', table, id:val, fields})
+    }),
+    upsert: (data) => _api({action:'upsert', table, data}),
+    delete: () => ({
+      eq: (col, val) => _api({action:'delete', table, id:val})
+    }),
+  }),
+  channel: () => ({ on: () => ({ on: () => ({ subscribe: () => ({}) }) }), subscribe: () => ({}) }),
+  removeChannel: () => {},
+};
 
 // ══ ESTADO ══
 let patients=[],appointments=[],therapists=[],adminNotifications=[],currentCasais=[],currentTherapist=null,currentTipo='adulto',activeStatusFilter='all',tNivelFilter='all';
@@ -997,7 +1022,7 @@ patients=pData.map(mapPatient);
     appointments=aData;
     adminNotifications=nData.map(n=>({...n,desc:n.description}));
     currentCasais=cData;
-  }catch(e){console.error('Erro crítico ao carregar:',e);showToast('Erro ao conectar com Supabase.');}
+  }catch(e){console.error('Erro crítico ao carregar:',e);showToast('Erro ao carregar dados.');}
   finally{showGlobalLoading(false);}
 }
 
