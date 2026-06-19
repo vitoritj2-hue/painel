@@ -1293,4 +1293,256 @@ async async function sendDeviceNotif(title,body,icon){
   // Fallback: notificação direta
   try{new Notification(title,{body:body||'',icon:icon||'/icons/icon-192.png'});}catch(e){}
 }
+
+
+// ══ RENDER CASAIS TABLE (admin) ══
+function renderCasaisTable(list){
+  const tb=document.getElementById('casais-table-body');
+  if(!tb)return;
+  if(!list||!list.length){tb.innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text2)">Nenhuma ficha de casal</td></tr>';return;}
+  tb.innerHTML=list.map(c=>{
+    const t=therapists.find(x=>x.id===c.therapistId);
+    const tNome=t?t.nome:'<span style="color:var(--yellow)">Não atribuído</span>';
+    const data=c.created_at?new Date(c.created_at).toLocaleDateString('pt-BR'):'—';
+    const nomes=(c.p1_nome||'?')+' & '+(c.p2_nome||'?');
+    const statusBadge=c.status==='andamento'?'<span class="badge badge-blue">Em andamento</span>':c.status==='finalizado'?'<span class="badge badge-teal">Finalizado</span>':c.status==='pausado'?'<span class="badge badge-red">Pausado</span>':'<span class="badge badge-yellow">Espera</span>';
+    return `<tr>
+      <td><strong>${nomes}</strong>${statusBadge}</td>
+      <td>${c.tempo_juntos||'—'}</td>
+      <td>${data}</td>
+      <td>${c.conexao_emocional||'—'}</td>
+      <td>${tNome}</td>
+      <td><button class="btn-secondary" style="font-size:.75rem;padding:5px 10px" onclick="openAssignCasal('${c.id}')">Atribuir</button>
+          <button class="btn-secondary" style="font-size:.75rem;padding:5px 10px;margin-left:4px" onclick="openModalCasal(currentCasais.find(x=>x.id==='${c.id}'))">Ver</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function filterCasaisTable(q){
+  const f=q.toLowerCase();
+  renderCasaisTable(f?currentCasais.filter(c=>(c.p1_nome||'').toLowerCase().includes(f)||(c.p2_nome||'').toLowerCase().includes(f)):currentCasais);
+}
+
+// ══ MODAL CASAL (visualizar) ══
+function openModalCasal(c){
+  if(!c)return;
+  document.getElementById('mc-name').textContent=(c.p1_nome||'?')+' & '+(c.p2_nome||'?');
+  const body=document.querySelector('#modal-casal .modal-body')||document.querySelector('#modal-casal .modal');
+  const t=therapists.find(x=>x.id===c.therapistId);
+  const info=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:16px">
+      <div><strong>Parceiro 1</strong><br>${c.p1_nome||'—'} (${c.p1_idade||'—'} anos)<br>${c.p1_profissao||'—'}<br>${c.p1_telefone||'—'}</div>
+      <div><strong>Parceiro 2</strong><br>${c.p2_nome||'—'} (${c.p2_idade||'—'} anos)<br>${c.p2_profissao||'—'}<br>${c.p2_telefone||'—'}</div>
+      <div><strong>Tempo juntos</strong><br>${c.tempo_juntos||'—'}</div>
+      <div><strong>Filhos</strong><br>${c.filhos||'—'}</div>
+      <div style="grid-column:1/-1"><strong>Motivação</strong><br>${c.motivacao||'—'}</div>
+      <div style="grid-column:1/-1"><strong>Expectativas</strong><br>${c.expectativas||'—'}</div>
+      <div><strong>Terapeuta</strong><br>${t?t.nome:'Não atribuído'}</div>
+      <div><strong>Status</strong><br>${c.status||'espera'}</div>
+    </div>`;
+  // inject into modal if has a content area
+  const existing=document.getElementById('mc-content');
+  if(existing)existing.innerHTML=info;
+  document.getElementById('modal-casal').classList.add('open');
+}
+
+// ══ ATRIBUIR CASAL ══
+let _assignCasalId=null;
+
+function openAssignCasal(casalId){
+  _assignCasalId=casalId;
+  _assignMode='casal';
+  const c=currentCasais.find(x=>x.id===casalId);
+  // reuse assign modal
+  document.getElementById('assign-patient-id').value=casalId;
+  document.getElementById('assign-therapist-id').value='';
+  document.getElementById('assign-patient-selected').style.display='block';
+  document.getElementById('assign-patient-selected').textContent='Casal: '+((c&&c.p1_nome)||'?')+' & '+((c&&c.p2_nome)||'?');
+  document.getElementById('assign-patient-list').innerHTML='';
+  document.getElementById('assign-therapist-selected').style.display='none';
+  document.getElementById('assign-therapist-search').value='';
+  populateAssignTherapistList('');
+  document.getElementById('modal-assign').classList.add('open');
+}
+
+// ══ ATRIBUIR PACIENTE (modal genérico) ══
+let _assignMode='patient'; // 'patient' | 'casal'
+let _assignPatientSearch='',_assignTherapistSearch='';
+
+function openAssign(){
+  _assignMode='patient';
+  _assignCasalId=null;
+  document.getElementById('assign-patient-id').value='';
+  document.getElementById('assign-therapist-id').value='';
+  document.getElementById('assign-patient-selected').style.display='none';
+  document.getElementById('assign-therapist-selected').style.display='none';
+  document.getElementById('assign-patient-search').value='';
+  document.getElementById('assign-therapist-search').value='';
+  populateAssignPatientList('');
+  populateAssignTherapistList('');
+  document.getElementById('modal-assign').classList.add('open');
+}
+
+function populateAssignPatientList(q){
+  const el=document.getElementById('assign-patient-list');
+  const f=q.toLowerCase();
+  const list=patients.filter(p=>!f||p.nome.toLowerCase().includes(f)||p.queixa.toLowerCase().includes(f)).slice(0,30);
+  el.innerHTML=list.length?list.map(p=>`<div style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border)" onclick="selectAssignPatient('${p.id}','${p.nome.replace(/'/g,"\'")}')">
+    <div style="font-size:.85rem;font-weight:600">${p.nome}</div>
+    <div style="font-size:.75rem;color:var(--text2)">${p.tipo} · ${p.status}</div>
+  </div>`).join(''):'<div style="padding:12px;color:var(--text2);font-size:.82rem">Nenhum encontrado</div>';
+}
+
+function populateAssignTherapistList(q){
+  const el=document.getElementById('assign-therapist-list');
+  const f=q.toLowerCase();
+  const list=therapists.filter(t=>!f||t.nome.toLowerCase().includes(f)).slice(0,20);
+  el.innerHTML=list.length?list.map(t=>`<div style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border)" onclick="selectAssignTherapist('${t.id}','${t.nome.replace(/'/g,"\'")}')">
+    <div style="font-size:.85rem;font-weight:600">${t.nome}</div>
+    <div style="font-size:.75rem;color:var(--text2)">${t.especialidade||''}</div>
+  </div>`).join(''):'<div style="padding:12px;color:var(--text2);font-size:.82rem">Nenhum terapeuta</div>';
+}
+
+function selectAssignPatient(id,nome){
+  document.getElementById('assign-patient-id').value=id;
+  const sel=document.getElementById('assign-patient-selected');
+  sel.style.display='block';sel.textContent='Paciente: '+nome;
+  document.getElementById('assign-patient-list').innerHTML='';
+}
+
+function selectAssignTherapist(id,nome){
+  document.getElementById('assign-therapist-id').value=id;
+  const sel=document.getElementById('assign-therapist-selected');
+  sel.style.display='block';sel.textContent='Terapeuta: '+nome;
+  document.getElementById('assign-therapist-list').innerHTML='';
+}
+
+function filterAssignList(type){
+  if(type==='patient'){populateAssignPatientList(document.getElementById('assign-patient-search').value);}
+  else{populateAssignTherapistList(document.getElementById('assign-therapist-search').value);}
+}
+
+async function assignPatient(){
+  const pid=document.getElementById('assign-patient-id').value;
+  const tid=document.getElementById('assign-therapist-id').value;
+  if(!pid){showToast('Selecione um paciente ou casal.');return;}
+  if(!tid){showToast('Selecione um terapeuta.');return;}
+  const t=therapists.find(x=>x.id===tid);
+  const tNome=t?t.nome:'Terapeuta';
+  if(_assignMode==='casal'){
+    const ok=await dbUpdate('fichas_casal',pid,{therapistId:tid,status:'andamento'});
+    if(ok){
+      const c=currentCasais.find(x=>x.id===pid);
+      if(c){c.therapistId=tid;c.status='andamento';}
+      renderCasaisTable(currentCasais);
+      const nomes=c?(c.p1_nome||'?')+' & '+(c.p2_nome||'?'):'Casal';
+      await addAdminNotification('casal','ni-blue','Casal atribuído',nomes+' → '+tNome);
+      showToast('Casal atribuído a '+tNome+'!');
+    }
+  } else {
+    const ok=await dbUpdate('fichas_triagem',pid,{therapistId:tid,status:'andamento'});
+    if(ok){
+      const p=patients.find(x=>x.id===pid);
+      if(p){p.therapistId=tid;p.status='andamento';}
+      applyFilters();updateMetrics();
+      await addAdminNotification('ficha','ni-blue','Paciente atribuído',(p?p.nome:'Paciente')+' → '+tNome);
+      showToast('Paciente atribuído a '+tNome+'!');
+    }
+  }
+  closeOverlay('modal-assign');
+}
+
+// ══ REFRESH ADMIN ══
+function refreshAdmin(){loadData().then(()=>{applyFilters();updateMetrics();renderCasaisTable(currentCasais);renderTherapistAdmin&&renderTherapistAdmin();});}
+
+// ══ REFRESH THERAPIST ══
+function refreshTherapist(){
+  if(!currentTherapist)return;
+  // Pacientes individuais do terapeuta
+  const myPatients=patients.filter(p=>p.therapistId===currentTherapist.id);
+  // Fichas de casal do terapeuta
+  const myCasais=currentCasais.filter(c=>c.therapistId===currentTherapist.id);
+  renderTherapistCards(myPatients,myCasais);
+  updateTherapistHeader();
+}
+
+function renderTherapistCards(myPatients,myCasais){
+  const container=document.getElementById('therapist-cards-container');
+  if(!container)return;
+  let html='';
+  if(myPatients.length){
+    html+='<div style="grid-column:1/-1;font-size:.8rem;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Pacientes Individuais</div>';
+    html+=myPatients.map(p=>`
+      <div class="patient-card" onclick="openFicha('${p.id}')">
+        <div class="patient-card-avatar">${initials(p.nome)}</div>
+        <div class="patient-card-info">
+          <div class="patient-card-name">${p.nome}</div>
+          <div class="patient-card-meta">${p.tipo} · ${p.sessoes} sessões</div>
+        </div>
+        <span class="badge ${p.status==='andamento'?'badge-blue':p.status==='finalizado'?'badge-teal':p.status==='pausado'?'badge-red':'badge-yellow'}">${p.status}</span>
+      </div>`).join('');
+  }
+  if(myCasais.length){
+    html+='<div style="grid-column:1/-1;font-size:.8rem;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin:12px 0 4px">Fichas de Casal</div>';
+    html+=myCasais.map(c=>`
+      <div class="patient-card" onclick="openModalCasal(currentCasais.find(x=>x.id==='${c.id}'))">
+        <div class="patient-card-avatar" style="background:var(--teal)">💑</div>
+        <div class="patient-card-info">
+          <div class="patient-card-name">${(c.p1_nome||'?')+' & '+(c.p2_nome||'?')}</div>
+          <div class="patient-card-meta">Casal · ${c.sessoes||0} sessões</div>
+        </div>
+        <span class="badge ${c.status==='andamento'?'badge-blue':c.status==='finalizado'?'badge-teal':c.status==='pausado'?'badge-red':'badge-yellow'}">${c.status||'espera'}</span>
+      </div>`).join('');
+  }
+  if(!myPatients.length&&!myCasais.length){
+    html='<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text2)">Nenhum paciente atribuído ainda.</div>';
+  }
+  container.innerHTML=html;
+}
+
+// ══ NOTIF POLLING TERAPEUTA ══
+function startNotifPolling(){
+  stopNotifPolling();
+  _knownPatientIds=new Set(patients.filter(p=>p.therapistId===currentTherapist?.id).map(p=>p.id));
+  _notifPollingInterval=setInterval(async()=>{
+    if(!currentTherapist)return;
+    const r=await _api({action:'select',table:'fichas_triagem',orderField:'created_at',order:'desc',limit:50,offset:0});
+    if(r.data){
+      r.data.forEach(row=>{
+        if(row.therapistId===currentTherapist.id&&!_knownPatientIds.has(row.id)){
+          _knownPatientIds.add(row.id);
+          const p=mapPatient(row);
+          patients.unshift(p);
+          sendDeviceNotif('📋 Novo paciente!',p.nome+' foi atribuído a você.','/icons/icon-192.png');
+          playNotifSound('ficha');
+          refreshTherapist();
+        }
+      });
+    }
+  },30000);
+}
+
+function stopNotifPolling(){
+  if(_notifPollingInterval){clearInterval(_notifPollingInterval);_notifPollingInterval=null;}
+}
+
+// ══ MÉTRICAS ══
+function updateMetrics(){
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+  set('m-total',patients.length);
+  set('m-casais',currentCasais.length);
+  set('m-terapeutas',therapists.length);
+  set('m-espera',patients.filter(p=>p.status==='espera').length);
+  set('m-andamento',patients.filter(p=>p.status==='andamento').length);
+  set('m-final',patients.filter(p=>p.status==='finalizado').length);
+  set('m-pausado',patients.filter(p=>p.status==='pausado').length);
+}
+
+// ══ THERAPIST HEADER ══
+function updateTherapistHeader(){
+  const el=document.getElementById('therapist-header-name');
+  if(el&&currentTherapist)el.textContent=currentTherapist.nome;
+}
+
+
 >
