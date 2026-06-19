@@ -902,18 +902,27 @@ tr:hover td{background:rgba(255,255,255,.015)}
 
 // ══ NEON DB ══
 const _api = async (body) => {
-  const r = await fetch('/api/db', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
-  return r.json();
+  try {
+    const r = await fetch('/api/db', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    if(!r.ok) { console.error('API error:', r.status); return {data:null,error:'HTTP '+r.status}; }
+    return r.json();
+  } catch(e) {
+    console.error('API fetch error:', e);
+    return {data: null, error: e.message};
+  }
 };
 const db = {
   from: (table) => ({
-    select: () => ({
-      order: (field, {ascending}={}) => ({
-        range: (from, to) => _api({action:'select', table, orderField:field, order:ascending?'asc':'desc', offset:from, limit:to-from+1}),
-        then: (res, rej) => _api({action:'select', table, orderField:field, order:ascending?'asc':'desc'}).then(res).catch(rej)
-      }),
-      then: (res, rej) => _api({action:'select', table}).then(res).catch(rej)
-    }),
+    select: () => {
+      let _field='created_at', _asc=false, _from=0, _to=999;
+      const q = {
+        order(field, {ascending}={}) { _field=field; _asc=!!ascending; return q; },
+        range(from, to) { _from=from; _to=to; return q; },
+        single() { return _api({action:'select', table, orderField:_field, order:_asc?'asc':'desc', offset:_from, limit:1}).then(r=>({data:r.data?.[0]||null,error:r.error})); },
+        then(res, rej) { return _api({action:'select', table, orderField:_field, order:_asc?'asc':'desc', offset:_from, limit:_to-_from+1}).then(res).catch(rej); }
+      };
+      return q;
+    },
     insert: (data) => ({
       select: () => ({ single: () => _api({action:'insert', table, data}) }),
       then: (res, rej) => _api({action:'insert', table, data}).then(res).catch(rej)
@@ -1502,26 +1511,9 @@ function renderTherapistCards(myPatients,myCasais){
 
 // ══ NOTIF POLLING TERAPEUTA ══
 function startNotifPolling(){
-  stopNotifPolling();
+  // Polling desativado — notificações via SW apenas
   _knownPatientIds=new Set(patients.filter(p=>p.therapistId===currentTherapist?.id).map(p=>p.id));
-  _notifPollingInterval=setInterval(async()=>{
-    if(!currentTherapist)return;
-    const r=await _api({action:'select',table:'fichas_triagem',orderField:'created_at',order:'desc',limit:50,offset:0});
-    if(r.data){
-      r.data.forEach(row=>{
-        if(row.therapistId===currentTherapist.id&&!_knownPatientIds.has(row.id)){
-          _knownPatientIds.add(row.id);
-          const p=mapPatient(row);
-          patients.unshift(p);
-          sendDeviceNotif('📋 Novo paciente!',p.nome+' foi atribuído a você.','/icons/icon-192.png');
-          playNotifSound('ficha');
-          refreshTherapist();
-        }
-      });
-    }
-  },30000);
 }
-
 function stopNotifPolling(){
   if(_notifPollingInterval){clearInterval(_notifPollingInterval);_notifPollingInterval=null;}
 }
