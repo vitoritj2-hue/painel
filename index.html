@@ -1255,7 +1255,7 @@ async function registerSW(){
   }catch(e){console.warn('SW falhou:',e);}
 }
 
-async async function ativarNotificacoes(prefix){
+async function ativarNotificacoes(prefix){
   const banner=document.getElementById('notif-perm-banner-'+prefix);
   if(!('Notification' in window)){showToast('Seu navegador não suporta notificações.');return;}
   const perm=await Notification.requestPermission();
@@ -1281,7 +1281,7 @@ function checkNotifBanner(prefix){
   }
 }
 
-async async function requestNotifPermission(){
+async function requestNotifPermission(){
   if(!('Notification' in window))return false;
   if(Notification.permission==='granted')return true;
   if(Notification.permission==='denied')return false;
@@ -1289,7 +1289,7 @@ async async function requestNotifPermission(){
   return perm==='granted';
 }
 
-async async function sendDeviceNotif(title,body,icon){
+async function sendDeviceNotif(title,body,icon){
   if(Notification.permission!=='granted')return;
   try{
     // Tenta via Service Worker (funciona com site minimizado)
