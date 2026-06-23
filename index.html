@@ -1020,19 +1020,19 @@ async function loadData(){
   try{
     const safe=async(query,fallback=[])=>{try{const r=await query;if(r.error)console.error('loadData:',r.error);return r.data||fallback;}catch(e){console.error('loadData catch:',e);return fallback;}};
     const[pData,tData,aData,nData,cData]=await Promise.all([
-      safe(db.from('fichas_triagem').select('*').order('created_at',{ascending:false}).range(0,19)),
+      safe(db.from('fichas_triagem').select('*').order('created_at',{ascending:false})),
       safe(db.from('terapeutas').select('*').order('created_at',{ascending:false})),
       safe(db.from('agendamentos').select('*').order('date',{ascending:true})),
       safe(db.from('admin_notificacoes').select('*').order('created_at',{ascending:false}).range(0,49)),
-      safe(db.from('fichas_casal').select('*').order('created_at',{ascending:false}).range(0,19))
+      safe(db.from('fichas_casal').select('*').order('created_at',{ascending:false}))
     ]);
-    _hasMorePatients=pData.length===PAGE;
+    _hasMorePatients=false;
 patients=pData.map(mapPatient);
     therapists=tData;
     appointments=aData;
     adminNotifications=nData.map(n=>({...n,desc:n.description}));
     currentCasais=cData;
-  }catch(e){console.error('Erro crítico ao carregar:',e);showToast('Erro ao conectar com Supabase.');}
+  }catch(e){console.error('Erro crítico ao carregar:',e);showToast('Erro ao conectar com o banco de dados.');}
   finally{showGlobalLoading(false);}
 }
 
