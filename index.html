@@ -1249,10 +1249,14 @@ let _swReg=null;
 // Registra o Service Worker
 async function registerSW(){
   if(!('serviceWorker' in navigator))return;
-  try{
-    _swReg=await navigator.serviceWorker.register('/sw.js');
-    console.log('SW registrado');
-  }catch(e){console.warn('SW falhou:',e);}
+  navigator.serviceWorker.register('/sw.js')
+    .then(reg=>{ _swReg=reg; console.log('SW registrado'); })
+    .catch(e=>console.warn('SW falhou:',e));
+  // Recarrega automaticamente quando novo SW assumir o controle
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{
+    window.location.reload();
+  });
+
 }
 
 async function ativarNotificacoes(prefix){
