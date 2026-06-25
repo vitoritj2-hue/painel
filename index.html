@@ -423,6 +423,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
     <button class="tab-btn" onclick="switchTab('admin','terapeutas',this);renderTherapistAdmin()">Terapeutas</button>
     <button class="tab-btn" onclick="switchTab('admin','agenda',this);initCal('admin');populateAdminAgendaFilter()">Agenda</button>
     <button class="tab-btn" onclick="switchTab('admin','relatorio',this);renderRelatorioList('admin')">Relatórios</button>
+    <button class="tab-btn" onclick="switchTab('admin','assinaturas',this);renderAssinaturasTab()">✍ Assinaturas</button>
     <button class="tab-btn" onclick="switchTab('admin','contrato',this);populateContractSelect('admin');initSignCanvas('ac-sign-canvas');initSignCanvas('ac-sign-canvas-t');loadContratos()">Contrato</button>
   </div>
   <div class="page-content">
@@ -550,6 +551,38 @@ tr:hover td{background:rgba(255,255,255,.015)}
       <div class="relatorio-grid">
         <div class="rel-sidebar"><div class="rel-sidebar-hdr"><h4>Pacientes</h4><p>Selecione para ver</p></div><div class="rel-patient-list" id="rel-list-admin"></div></div>
         <div class="rel-content" id="rel-content-admin"><div class="rel-empty"><div class="es-icon">↗</div><p>Selecione um paciente.</p></div></div>
+      </div>
+    </div>
+
+
+    <div class="page" id="page-admin-assinaturas" style="display:none">
+      <div class="page-title">✍ Assinaturas de Consentimento</div>
+
+      <!-- Stats -->
+      <div class="metrics-row" id="sign-stats-row" style="margin-bottom:14px">
+        <div class="metric-card" style="flex:1"><div class="metric-label">Total</div><div class="metric-value" id="sign-total">0</div></div>
+        <div class="metric-card" style="flex:1"><div class="metric-label" style="color:var(--teal)">✅ Completos</div><div class="metric-value" id="sign-completos">0</div></div>
+        <div class="metric-card" style="flex:1"><div class="metric-label" style="color:var(--yellow)">⏳ Pendentes</div><div class="metric-value" id="sign-pendentes">0</div></div>
+        <div class="metric-card" style="flex:1"><div class="metric-label" style="color:var(--blue)">⚠️ Parciais</div><div class="metric-value" id="sign-parciais">0</div></div>
+      </div>
+
+      <!-- Filters -->
+      <div class="search-bar" style="margin-bottom:14px">
+        <div class="search-filters">
+          <span class="filter-label">Filtrar:</span>
+          <span class="filter-chip active-all" id="signf-all"   onclick="setSignFilter('all')">Todos</span>
+          <span class="filter-chip" id="signf-pendente"         onclick="setSignFilter('pendente')">⏳ Pendentes</span>
+          <span class="filter-chip" id="signf-parcial"          onclick="setSignFilter('parcial')">⚠️ Parciais</span>
+          <span class="filter-chip" id="signf-completo"         onclick="setSignFilter('completo')">✅ Completos</span>
+        </div>
+      </div>
+
+      <!-- List -->
+      <div class="data-card">
+        <div class="data-card-header">
+          <span class="data-card-title">Pacientes</span>
+        </div>
+        <div id="assinaturas-list" style="padding:0 18px"></div>
       </div>
     </div>
 
@@ -1329,6 +1362,95 @@ function startNotifPolling(){
     }).subscribe();
 }
 function stopNotifPolling(){if(_realtimeChannelT){db.removeChannel(_realtimeChannelT);_realtimeChannelT=null;}}
+
+// ══ ASSINATURAS DE CONSENTIMENTO ══
+let _signFilter = 'all';
+
+function setSignFilter(f) {
+  _signFilter = f;
+  ['all','pendente','parcial','completo'].forEach(x => {
+    const c = document.getElementById('signf-' + x);
+    if (!c) return;
+    c.className = 'filter-chip' + (x === f ? (x === 'all' ? ' active-all' : ' active-' + (x === 'pendente' ? 'espera' : x === 'parcial' ? 'andamento' : 'finalizado')) : '');
+  });
+  renderAssinaturasTab();
+}
+
+function renderAssinaturasTab() {
+  const list = document.getElementById('assinaturas-list');
+  if (!list) return;
+
+  const all = patients.filter(p => p.status !== 'finalizado' || p.assinatura_paciente || p.assinatura_terapeuta);
+
+  const getStatus = p => {
+    const tp = !!p.assinatura_paciente, tt = !!p.assinatura_terapeuta;
+    if (tp && tt) return 'completo';
+    if (tp || tt) return 'parcial';
+    return 'pendente';
+  };
+
+  const filtered = _signFilter === 'all' ? all : all.filter(p => getStatus(p) === _signFilter);
+
+  // Update stats
+  const total = all.length;
+  const completos  = all.filter(p => getStatus(p) === 'completo').length;
+  const pendentes  = all.filter(p => getStatus(p) === 'pendente').length;
+  const parciais   = all.filter(p => getStatus(p) === 'parcial').length;
+  ['sign-total','sign-completos','sign-pendentes','sign-parciais'].forEach((id, i) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = [total, completos, pendentes, parciais][i];
+  });
+
+  if (!filtered.length) {
+    list.innerHTML = '<div style="padding:32px;text-align:center;color:var(--text3);font-size:.84rem">Nenhum paciente encontrado.</div>';
+    return;
+  }
+
+  list.innerHTML = filtered.map(p => {
+    const t = therapists.find(x => x.id === p.therapistId);
+    const st = getStatus(p);
+    const stBadge = st === 'completo'
+      ? '<span style="font-size:.7rem;padding:2px 10px;border-radius:50px;background:rgba(45,212,170,.1);color:var(--teal);border:1px solid rgba(45,212,170,.25);font-weight:600">✅ Completo</span>'
+      : st === 'parcial'
+        ? '<span style="font-size:.7rem;padding:2px 10px;border-radius:50px;background:rgba(79,142,247,.1);color:var(--blue);border:1px solid rgba(79,142,247,.25);font-weight:600">⚠️ Parcial</span>'
+        : '<span style="font-size:.7rem;padding:2px 10px;border-radius:50px;background:rgba(240,180,41,.1);color:var(--yellow);border:1px solid rgba(240,180,41,.25);font-weight:600">⏳ Pendente</span>';
+
+    const signP = p.assinatura_paciente
+      ? '<span style="font-size:.68rem;color:var(--teal)">✍ Paciente ✓</span>'
+      : '<span style="font-size:.68rem;color:var(--text3)">✍ Paciente pendente</span>';
+    const signT = p.assinatura_terapeuta
+      ? '<span style="font-size:.68rem;color:var(--teal)">✍ Terapeuta ✓</span>'
+      : '<span style="font-size:.68rem;color:var(--text3)">✍ Terapeuta pendente</span>';
+
+    return '<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)">'
+      + '<div style="width:36px;height:36px;border-radius:9px;background:var(--grad);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:.8rem;flex-shrink:0">' + initials(p.nome) + '</div>'
+      + '<div style="flex:1;min-width:0">'
+        + '<div style="font-size:.85rem;font-weight:600;color:var(--text)">' + p.nome + '</div>'
+        + '<div style="font-size:.72rem;color:var(--text3);margin-top:2px">' + p.tipo + (t ? ' · ' + t.nome : '') + '</div>'
+        + '<div style="display:flex;gap:10px;margin-top:5px">' + signP + signT + '</div>'
+      + '</div>'
+      + '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">'
+        + stBadge
+        + '<button class="btn-secondary" style="font-size:.72rem;padding:4px 10px" onclick="openConsentModal(\'' + p.id + '\')">Ver / Assinar</button>'
+      + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+function openConsentModal(pid) {
+  const p = patients.find(x => x.id === pid);
+  if (!p) return;
+  // Set the patient in the contract selector and open the contract tab
+  switchTab('admin', 'contrato', document.querySelector('[onclick*=\'contrato\']'));
+  populateContractSelect('admin');
+  setTimeout(() => {
+    const sel = document.getElementById('ac-patient-select');
+    if (sel) { sel.value = pid; sel.dispatchEvent(new Event('change')); }
+    initSignCanvas('ac-sign-canvas');
+    initSignCanvas('ac-sign-canvas-t');
+  }, 100);
+}
+
 function updateTherapistHeader(){
   if(!currentTherapist)return;
   const av=document.getElementById('t-avatar-header');
