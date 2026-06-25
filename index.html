@@ -1976,7 +1976,7 @@ async function deleteAppointmentAdmin(aid,ds){
   buildUpcoming('admin');
   showToast('Sessão removida.');
 }
-function populateApptSelect(){const sel=document.getElementById('appt-patient');if(!sel)return;sel.innerHTML='<option value="">— Selecione —</option>';(currentTherapist?patients.filter(p=>p.therapistId===currentTherapist.id):patients).forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.nome;sel.appendChild(o);});}
+function populateApptSelect(){const sel=document.getElementById('appt-patient');if(!sel)return;sel.innerHTML='<option value="">— Selecione —</option>';(currentTherapist?myPatients():patients).forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.nome+(p._isCasal?' (Casal)':'');sel.appendChild(o);});}
 
 // ══ DEVOLUTIVAS ══
 function openDevHistory(pid){const p=patients.find(x=>x.id===pid);if(!p)return;document.getElementById('dev-history-title').textContent='Devolutivas — '+p.nome;renderDevHistoryList(p);document.getElementById('modal-dev-history').classList.add('open');}
