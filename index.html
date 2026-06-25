@@ -424,7 +424,6 @@ tr:hover td{background:rgba(255,255,255,.015)}
     <button class="tab-btn" onclick="switchTab('admin','agenda',this);initCal('admin');populateAdminAgendaFilter()">Agenda</button>
     <button class="tab-btn" onclick="switchTab('admin','relatorio',this);renderRelatorioList('admin')">Relatórios</button>
     <button class="tab-btn" onclick="switchTab('admin','assinaturas',this);renderAssinaturasTab()">✍ Assinaturas</button>
-    <button class="tab-btn" onclick="switchTab('admin','contrato',this);populateContractSelect('admin');initSignCanvas('ac-sign-canvas');initSignCanvas('ac-sign-canvas-t');loadContratos()">Contrato</button>
   </div>
   <div class="page-content">
 
@@ -586,51 +585,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
       </div>
     </div>
 
-    <div class="page" id="page-admin-contrato">
-      <div class="page-title">Gerar Contrato</div>
-      <div class="contract-wrap">
-        <div class="patient-selector"><label>Preencher automaticamente:</label><select id="admin-contract-select" onchange="fillContract('admin',this.value)"><option value="">— Selecione —</option></select></div>
-        <div class="auto-banner" id="admin-auto-banner">✓ <span id="admin-auto-text"></span></div>
-        <div class="contract-doc">
-          <h1>Contrato de Prestação de Serviços Terapêuticos</h1>
-          <p class="sub">Projeto Social Transformar</p><p class="sub2">Abordagem Cristã</p>
-          <div class="cfields"><div class="cf"><label>Nome do Paciente</label><input type="text" id="ac-nome"></div><div class="cf"><label>Terapeuta</label><input type="text" id="ac-terapeuta"></div><div class="cf"><label>Data de Início</label><input type="date" id="ac-data"></div><div class="cf"><label>Valor (R$)</label><input type="text" id="ac-valor" placeholder="0,00"></div><div class="cf"><label>Telefone</label><input type="text" id="ac-tel"></div><div class="cf"><label>E-mail</label><input type="text" id="ac-email"></div></div>
-          <h3>1. Objeto</h3><p>6 sessões individuais de 50 minutos.</p>
-          <h3>2. Cancelamento</h3><p>Comunicar com 24h de antecedência.</p>
-          <h3>3. Sigilo</h3><p>Sigilo absoluto conforme o Código de Ética Profissional.</p>
-          <div class="sign-area">
-            <div class="sign-block">
-              <div style="font-size:.72rem;font-weight:600;color:var(--text2);margin-bottom:6px">Assinatura do Paciente</div>
-              <canvas id="ac-sign-canvas" width="280" height="100" style="border:1.5px solid var(--border2);border-radius:8px;background:var(--bg2);cursor:crosshair;touch-action:none;width:100%"></canvas>
-              <div style="display:flex;gap:8px;margin-top:6px;justify-content:center">
-                <button onclick="clearCanvas('ac-sign-canvas')" style="font-size:.7rem;background:none;border:1px solid var(--border2);color:var(--text3);border-radius:6px;padding:3px 10px;cursor:pointer">Limpar</button>
-              </div>
-              <div class="sign-label" id="ac-sign-paciente">Paciente</div>
-            </div>
-            <div class="sign-block">
-              <div style="font-size:.72rem;font-weight:600;color:var(--text2);margin-bottom:6px">Assinatura do Terapeuta</div>
-              <canvas id="ac-sign-canvas-t" width="280" height="100" style="border:1.5px solid var(--border2);border-radius:8px;background:var(--bg2);cursor:crosshair;touch-action:none;width:100%"></canvas>
-              <div style="display:flex;gap:8px;margin-top:6px;justify-content:center">
-                <button onclick="clearCanvas('ac-sign-canvas-t')" style="font-size:.7rem;background:none;border:1px solid var(--border2);color:var(--text3);border-radius:6px;padding:3px 10px;cursor:pointer">Limpar</button>
-              </div>
-              <div class="sign-label">Terapeuta</div>
-            </div>
-          </div>
-        </div>
-        <div style="display:flex;gap:10px;margin-top:14px;justify-content:flex-end;flex-wrap:wrap">
-          <button class="btn-secondary" onclick="clearContract('admin')">Limpar</button>
-          <button class="btn-secondary" onclick="exportContractPDF('admin')" style="color:var(--teal);border-color:rgba(45,212,170,.3)">⬇ Exportar PDF</button>
-          <button class="btn-primary" onclick="registrarContrato('admin')">✓ Registrar contrato</button>
-        </div>
-      </div>
-
-      <!-- Lista de contratos registrados -->
-      <div style="margin-top:28px">
-        <div class="page-title" style="font-size:1rem;margin-bottom:12px">Contratos Registrados</div>
-        <div id="admin-contratos-list" style="display:flex;flex-direction:column;gap:10px"></div>
-      </div>
-    </div>
-
+    
   </div>
 </div>
 
@@ -657,7 +612,6 @@ tr:hover td{background:rgba(255,255,255,.015)}
     <button class="tab-btn" onclick="switchTab('t','relatorio',this);renderRelatorioList('t')">Relatórios</button>
     <button class="tab-btn" onclick="switchTab('t','obs',this)">Observações</button>
     <button class="tab-btn" onclick="switchTab('t','equipe',this);renderEquipe()">Sua Equipe</button>
-    <button class="tab-btn" onclick="switchTab('t','contrato',this);populateContractSelect('t')">Contrato</button>
     <button class="tab-btn" onclick="switchTab('t','disponibilidade',this);initDisponibilidade()">Disponibilidade</button>
   </div>
   <div class="page-content">
@@ -793,25 +747,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
         </div>
       </div>
     </div>
-    <div class="page" id="page-t-contrato">
-      <div class="page-title">Gerar Contrato</div>
-      <div class="contract-wrap">
-        <div class="patient-selector"><label>Preencher automaticamente:</label><select id="t-contract-select" onchange="fillContract('t',this.value)"><option value="">— Selecione —</option></select></div>
-        <div class="auto-banner" id="t-auto-banner">✓ <span id="t-auto-text"></span></div>
-        <div class="contract-doc">
-          <h1>Contrato de Prestação de Serviços Terapêuticos</h1><p class="sub">Projeto Social Transformar</p><p class="sub2">Abordagem Cristã</p>
-          <div class="cfields"><div class="cf"><label>Nome do Paciente</label><input type="text" id="tc-nome"></div><div class="cf"><label>Terapeuta</label><input type="text" id="tc-terapeuta" readonly style="opacity:.6;cursor:not-allowed"></div><div class="cf"><label>Data de Início</label><input type="date" id="tc-data"></div><div class="cf"><label>Valor (R$)</label><input type="text" id="tc-valor" placeholder="0,00"></div><div class="cf"><label>Telefone</label><input type="text" id="tc-tel"></div><div class="cf"><label>E-mail</label><input type="text" id="tc-email"></div></div>
-          <h3>1. Objeto</h3><p>6 sessões individuais de 50 minutos.</p><h3>2. Cancelamento</h3><p>Comunicar com 24h de antecedência.</p><h3>3. Sigilo</h3><p>Sigilo conforme o Código de Ética Profissional.</p>
-          <div class="sign-area"><div class="sign-block"><div class="sign-line"></div><div class="sign-label" id="tc-sign-paciente">Paciente</div></div><div class="sign-block"><div class="sign-line"></div><div class="sign-label" id="tc-sign-terapeuta">Terapeuta</div></div></div>
-        </div>
-        <div style="display:flex;gap:10px;margin-top:14px;justify-content:flex-end">
-          <button class="btn-secondary" onclick="clearContract('t')">Limpar</button>
-          <button class="btn-secondary" onclick="exportContractPDF('t')" style="color:var(--teal);border-color:rgba(45,212,170,.3)">Exportar PDF</button>
-          <button class="btn-primary" onclick="showToast('Contrato registrado!')">Registrar</button>
-        </div>
       </div>
-    </div>
-  </div>
 </div>
 
 <!-- MODAIS -->
@@ -1441,14 +1377,7 @@ function openConsentModal(pid) {
   const p = patients.find(x => x.id === pid);
   if (!p) return;
   // Set the patient in the contract selector and open the contract tab
-  switchTab('admin', 'contrato', document.querySelector('[onclick*=\'contrato\']'));
-  populateContractSelect('admin');
-  setTimeout(() => {
-    const sel = document.getElementById('ac-patient-select');
-    if (sel) { sel.value = pid; sel.dispatchEvent(new Event('change')); }
-    initSignCanvas('ac-sign-canvas');
-    initSignCanvas('ac-sign-canvas-t');
-  }, 100);
+  openFicha(pid);
 }
 
 function updateTherapistHeader(){
