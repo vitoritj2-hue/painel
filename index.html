@@ -423,7 +423,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
     <button class="tab-btn" onclick="switchTab('admin','terapeutas',this);renderTherapistAdmin()">Terapeutas</button>
     <button class="tab-btn" onclick="switchTab('admin','agenda',this);initCal('admin');populateAdminAgendaFilter()">Agenda</button>
     <button class="tab-btn" onclick="switchTab('admin','relatorio',this);renderRelatorioList('admin')">Relatórios</button>
-    <button class="tab-btn" onclick="switchTab('admin','assinaturas',this);renderAssinaturasTab()">✍ Assinaturas</button>
+    <button class="tab-btn" onclick="switchTab('admin','assinaturas',this);renderAssinaturasTab()">Assinaturas</button>
   </div>
   <div class="page-content">
 
@@ -554,8 +554,8 @@ tr:hover td{background:rgba(255,255,255,.015)}
     </div>
 
 
-    <div class="page" id="page-admin-assinaturas" style="display:none">
-      <div class="page-title">✍ Assinaturas de Consentimento</div>
+    <div class="page" id="page-admin-assinaturas">
+      <div class="page-title">Assinaturas de Consentimento</div>
 
       <!-- Stats -->
       <div class="metrics-row" id="sign-stats-row" style="margin-bottom:14px">
@@ -1848,7 +1848,24 @@ function clearContract(prefix){['nome','tel','email','data','valor'].forEach(f=>
 
 // ══ TERAPEUTA PANEL ══
 async function refreshTherapist(){await loadData();renderTherapistCards();renderObsList();populateContractSelect('t');updateTherapistHeader();renderNotifPanel('t');}
-function myPatients(){return currentTherapist?patients.filter(p=>p.therapistId===currentTherapist.id):[];}
+function myPatients(){
+  if(!currentTherapist) return [];
+  const indiv = patients.filter(p=>p.therapistId===currentTherapist.id);
+  const casal = currentCasais
+    .filter(c=>c.therapistId===currentTherapist.id)
+    .map(c=>({
+      ...c,
+      nome: c.p1_nome+' & '+c.p2_nome,
+      tipo: 'Casal',
+      _isCasal: true,
+      status: c.status||'espera',
+      sessoes: c.sessoes||0,
+      queixa: c.queixa||c.motivo||'',
+      sintomas: [],
+      devolutiva: c.devolutiva||''
+    }));
+  return [...indiv, ...casal];
+}
 function renderTherapistCards(){
   const c=document.getElementById('therapist-cards-container');if(!c)return;
   const mine=myPatients();
