@@ -1217,8 +1217,7 @@ async function confirmarSenha(){
     startAdminNotifPolling();
     checkNotifBanner('admin');
   });
-  await addAdminNotification('login','ni-blue',nome+' acessou a administração',new Date().toLocaleString('pt-BR'));
-}
+  }
 
 // ══ LOGIN TERAPEUTA ══
 function openTherapistLogin(){document.getElementById('modal-t-login').classList.add('open');document.getElementById('t-login-user').value='';document.getElementById('t-login-pass').value='';document.getElementById('t-login-erro').style.display='none';setTimeout(()=>document.getElementById('t-login-user').focus(),100);}
@@ -1508,7 +1507,7 @@ async function saveTherapist(){
   const tData={id:existId||uid(),nome,email:document.getElementById('tf-email').value,crp:document.getElementById('tf-crp').value,esp:document.getElementById('tf-esp').value,nivel:document.getElementById('tf-nivel').value,username:user,password:pass};
   await dbUpsert('terapeutas',tData);
   if(existId){const idx=therapists.findIndex(x=>x.id===existId);if(idx>=0)therapists[idx]={...therapists[idx],...tData};}
-  else{therapists.push(tData);await addAdminNotification('user','ni-green','Novo terapeuta adicionado',nome+' foi cadastrado(a).');}
+  else{therapists.push(tData);}
   closeOverlay('modal-t-form');renderTherapistAdmin();updateMetrics();showToast('Terapeuta salvo!');
 }
 async function removeTherapist(id){if(!confirm('Remover este terapeuta?'))return;await dbDelete('terapeutas',id);therapists=therapists.filter(x=>x.id!==id);patients.filter(p=>p.therapistId===id).forEach(async p=>{p.therapistId=null;await dbUpdate('fichas_triagem',p.id,{therapistId:null});});renderTherapistAdmin();updateMetrics();showToast('Removido.');}
@@ -1574,7 +1573,7 @@ async function assignPatient(){
     const ok=await dbUpdate('fichas_casal',casal.id,{therapistId:tid});
     if(!ok)return;
     casal.therapistId=tid;
-    if(t){await addAdminNotification('user','ni-green','Casal atribuído a '+t.nome,(casal.p1_nome+' & '+casal.p2_nome)+' foi encaminhado(a) para '+t.nome+'.');}
+    if(t){}
     closeOverlay('modal-assign');renderCasaisTable(currentCasais);refreshAdmin();showToast('✓ Casal atribuído a '+(t?t.nome:'terapeuta')+'!');
     return;
   }
@@ -1582,7 +1581,7 @@ async function assignPatient(){
   const ok=await dbUpdate('fichas_triagem',p.id,{therapistId:tid});
   if(!ok)return;
   p.therapistId=tid;
-  if(t){await addAdminNotification('user','ni-green','Paciente atribuído a '+t.nome,p.nome+' foi encaminhado(a) para '+t.nome+'.');}
+  if(t){}
   closeOverlay('modal-assign');refreshAdmin();showToast('✓ Paciente atribuído a '+(t?t.nome:'terapeuta')+'!');
 }
 function confirmReset(){document.getElementById('modal-reset').classList.add('open');}
