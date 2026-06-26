@@ -1361,7 +1361,7 @@ function renderAssinaturasTab() {
         + '<div style="font-size:.72rem;color:var(--text3);margin-top:2px">' + p.tipo + (t ? ' · ' + t.nome : '') + '</div>'
         + '<div style="margin-top:4px">' + signInfo + '</div>'
       + '</div>'
-      + '<div style="flex-shrink:0">' + badge + '</div>'
+      + '<div style="flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:6px">'        + badge        + (signed ? '<button class="btn-primary" style="font-size:.72rem;padding:4px 10px;margin-top:2px" onclick="gerarDocumentoConsentimento(\'' + p.id + '\')" >📄 Gerar doc.</button>' : '')        + '</div>'
       + '</div>';
   }).join('');
 }
@@ -1372,6 +1372,124 @@ function openConsentModal(pid) {
   // Set the patient in the contract selector and open the contract tab
   openFicha(pid);
 }
+
+function gerarDocumentoConsentimento(pid) {
+  const p = patients.find(x => x.id === pid);
+  if (!p) return;
+  const t = therapists.find(x => x.id === p.therapistId);
+  const dataAssinatura = p.assinatura_consentimento || '—';
+  const dataAtual = new Date().toLocaleDateString('pt-BR', {day:'2-digit',month:'long',year:'numeric'});
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Termo de Consentimento — ${p.nome}</title>
+<style>
+  @page { size: A4; margin: 2.5cm 2cm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Georgia', serif; font-size: 11pt; color: #1a1a1a; line-height: 1.7; }
+  .header { text-align: center; margin-bottom: 28px; border-bottom: 2px solid #2c5f8a; padding-bottom: 16px; }
+  .header h1 { font-size: 15pt; color: #2c5f8a; letter-spacing: 1px; margin-bottom: 4px; }
+  .header h2 { font-size: 11pt; font-weight: normal; color: #555; }
+  .section { margin-bottom: 18px; }
+  .section-title { font-size: 11pt; font-weight: bold; color: #2c5f8a; margin-bottom: 6px; border-left: 3px solid #2c5f8a; padding-left: 8px; }
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 24px; margin-bottom: 16px; }
+  .info-row { font-size: 10.5pt; }
+  .info-label { font-weight: bold; color: #444; }
+  p { margin-bottom: 10px; text-align: justify; }
+  ul { margin: 6px 0 10px 20px; }
+  ul li { margin-bottom: 5px; }
+  .num-section { margin-bottom: 14px; }
+  .num-section strong { display: block; margin-bottom: 4px; }
+  .signature-area { margin-top: 40px; border-top: 1px solid #ccc; padding-top: 20px; }
+  .sig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 20px; }
+  .sig-box { text-align: center; }
+  .sig-line { border-bottom: 1px solid #333; margin-bottom: 6px; height: 36px; }
+  .sig-label { font-size: 9.5pt; color: #555; }
+  .stamp { margin-top: 30px; text-align: center; font-size: 9pt; color: #888; border: 1px dashed #ccc; padding: 8px; border-radius: 4px; }
+  @media print { body { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>PROJETO SOCIAL TRANSFORMAR</h1>
+  <h2>Termo de Contrato e Consentimento Informado</h2>
+</div>
+
+<div class="section">
+  <div class="section-title">Dados do Paciente</div>
+  <div class="info-grid">
+    <div class="info-row"><span class="info-label">Nome:</span> ${p.nome}</div>
+    <div class="info-row"><span class="info-label">Tipo:</span> ${p.tipo}</div>
+    <div class="info-row"><span class="info-label">Telefone:</span> ${p.tel || '—'}</div>
+    <div class="info-row"><span class="info-label">E-mail:</span> ${p.email || '—'}</div>
+    <div class="info-row"><span class="info-label">Terapeuta:</span> ${t ? t.nome : '—'}</div>
+    <div class="info-row"><span class="info-label">Data de adesão:</span> ${p.data || '—'}</div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">1. Termos do Atendimento</div>
+  <p>O paciente concorda com a realização de <strong>6 sessões terapêuticas</strong> no valor unitário de <strong>R$ 35,00</strong>, conforme as diretrizes estabelecidas nesta política.</p>
+</div>
+
+<div class="section">
+  <div class="section-title">2. Confirmação e Pagamento</div>
+  <p>Para garantir a realização do atendimento:</p>
+  <ul>
+    <li>O pagamento da sessão deverá ser efetuado até <strong>40 minutos antes</strong> do horário agendado.</li>
+    <li>O envio do comprovante ou confirmação do pagamento será considerado como <strong>confirmação oficial da presença</strong> do paciente.</li>
+    <li>Caso o pagamento não seja realizado e/ou o paciente não responda à mensagem de confirmação do terapeuta dentro do prazo, a sessão será <strong>automaticamente cancelada</strong>, liberando o horário para outro paciente.</li>
+  </ul>
+</div>
+
+<div class="section">
+  <div class="section-title">3. Reagendamento</div>
+  <ul>
+    <li>O reagendamento deverá ser solicitado com <strong>aviso prévio de 24 horas</strong> pelo contratante.</li>
+    <li>Caso o paciente já tenha efetuado o pagamento, mas não consiga comparecer à sessão, será realizada uma análise individual do caso, podendo haver remarcação conforme disponibilidade de agenda.</li>
+    <li>Ausências sem aviso prévio poderão implicar na <strong>perda da sessão</strong>, especialmente em razão do caráter social do projeto.</li>
+  </ul>
+</div>
+
+<div class="section">
+  <div class="section-title">4. Compromisso com o Projeto</div>
+  <p>Por se tratar de um atendimento com valor social, prezamos pelo <strong>compromisso, responsabilidade e respeito mútuo</strong> entre terapeuta e paciente, garantindo que outras pessoas também possam ter acesso ao atendimento.</p>
+</div>
+
+<div class="section">
+  <div class="section-title">Termo de Consentimento Informado</div>
+  <p>Declaro que as informações prestadas são verdadeiras e autorizo o uso para fins de <strong>atendimento terapêutico e social</strong>, conforme normas éticas e legais.</p>
+  <p>Li e concordo com os Termos de Contrato acima, incluindo as políticas de pagamento, reagendamento e compromisso com o projeto.</p>
+</div>
+
+<div class="signature-area">
+  <div class="sig-grid">
+    <div class="sig-box">
+      <div class="sig-line"></div>
+      <div class="sig-label"><strong>${p.nome}</strong><br>Assinatura do Paciente / Responsável</div>
+    </div>
+    <div class="sig-box">
+      <div class="sig-line"></div>
+      <div class="sig-label"><strong>${t ? t.nome : 'Terapeuta Responsável'}</strong><br>Assinatura do Terapeuta</div>
+    </div>
+  </div>
+  <div class="stamp">
+    Documento registrado em: ${dataAssinatura} &nbsp;|&nbsp; Gerado em: ${dataAtual} &nbsp;|&nbsp; Projeto Social Transformar
+  </div>
+</div>
+
+</body>
+</html>`;
+
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  setTimeout(() => win.print(), 600);
+}
+
 
 function updateTherapistHeader(){
   if(!currentTherapist)return;
