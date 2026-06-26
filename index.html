@@ -562,7 +562,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
         <div class="metric-card" style="flex:1"><div class="metric-label">Total</div><div class="metric-value" id="sign-total">0</div></div>
         <div class="metric-card" style="flex:1"><div class="metric-label" style="color:var(--teal)">✅ Completos</div><div class="metric-value" id="sign-completos">0</div></div>
         <div class="metric-card" style="flex:1"><div class="metric-label" style="color:var(--yellow)">⏳ Pendentes</div><div class="metric-value" id="sign-pendentes">0</div></div>
-        <div class="metric-card" style="flex:1"><div class="metric-label" style="color:var(--blue)">⚠️ Parciais</div><div class="metric-value" id="sign-parciais">0</div></div>
+        
       </div>
 
       <!-- Filters -->
@@ -978,7 +978,7 @@ function mapPatient(r){
   let sintomas=[];try{sintomas=typeof r.sintomas==='string'?JSON.parse(r.sintomas):(r.sintomas||[]);}catch(e){sintomas=[];}
   let devolutivas={};try{devolutivas=typeof r.devolutivas==='string'?JSON.parse(r.devolutivas):(r.devolutivas||{});}catch(e){devolutivas={};}
   const sm={'pendente':'espera','obs':'espera','imprevisto':'pausado','espera':'espera','andamento':'andamento','pausado':'pausado','finalizado':'finalizado'};
-  return{id:r.id,tipo:r.tipo||'Adulto',nome:r.nome||'—',nasc:r.nasc||'',cpf:r.cpf||'',tel:r.tel||'',email:r.email||'',sexo:r.sexo||'',ecivil:r.ecivil||'',cidade:r.cidade||'',queixa:r.queixa||'',terapia:r.terapia||'',med:r.med||'',sintomas,religiao:r.religiao||'',renda:r.renda||'',auxilio:r.auxilio||'',motivacao:r.motivacao||'',expectativa:r.expectativa||'',dias:r.dias||'',periodo:r.periodo||'',preferenciaT:r.preferenciaT||'',escola:r.escola||'',resp:r.resp||'',parent:r.parent||'',hist:r.hist||'',reside:r.reside||'',data:r.created_at?new Date(r.created_at).toLocaleDateString('pt-BR'):'',status:sm[r.status]||'andamento',sessoes:r.sessoes||0,devolutiva:r.devolutiva||'',obs:r.obs||'',therapistId:r.therapistId||null,devolutivas};
+  return{id:r.id,tipo:r.tipo||'Adulto',nome:r.nome||'—',nasc:r.nasc||'',cpf:r.cpf||'',tel:r.tel||'',email:r.email||'',sexo:r.sexo||'',ecivil:r.ecivil||'',cidade:r.cidade||'',queixa:r.queixa||'',terapia:r.terapia||'',med:r.med||'',sintomas,religiao:r.religiao||'',renda:r.renda||'',auxilio:r.auxilio||'',motivacao:r.motivacao||'',expectativa:r.expectativa||'',dias:r.dias||'',periodo:r.periodo||'',preferenciaT:r.preferenciaT||'',escola:r.escola||'',resp:r.resp||'',parent:r.parent||'',hist:r.hist||'',reside:r.reside||'',data:r.created_at?new Date(r.created_at).toLocaleDateString('pt-BR'):'',status:sm[r.status]||'andamento',sessoes:r.sessoes||0,devolutiva:r.devolutiva||'',obs:r.obs||'',therapistId:r.therapistId||null,devolutivas,assinatura_consentimento:r.assinatura_consentimento||null};
 }
 
 let _patientsPage=0,_hasMorePatients=false;
@@ -1316,26 +1316,28 @@ function renderAssinaturasTab() {
   const list = document.getElementById('assinaturas-list');
   if (!list) return;
 
-  const all = patients.filter(p => p.status !== 'finalizado' || p.assinatura_paciente || p.assinatura_terapeuta);
+  const all = [...patients, ...currentCasais.map(c=>({
+    ...c,
+    nome: c.p1_nome+' & '+c.p2_nome,
+    tipo: 'Casal',
+    therapistId: c.therapistId||null,
+    assinatura_consentimento: c.assinatura_consentimento||null
+  }))];
 
-  const getStatus = p => {
-    const tp = !!p.assinatura_paciente, tt = !!p.assinatura_terapeuta;
-    if (tp && tt) return 'completo';
-    if (tp || tt) return 'parcial';
-    return 'pendente';
-  };
+  const signed   = all.filter(p => !!p.assinatura_consentimento);
+  const pending  = all.filter(p => !p.assinatura_consentimento);
 
-  const filtered = _signFilter === 'all' ? all : all.filter(p => getStatus(p) === _signFilter);
+  // Stats
+  const setEl = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
+  setEl('sign-total',    all.length);
+  setEl('sign-completos',signed.length);
+  setEl('sign-pendentes',pending.length);
+  setEl('sign-parciais', 0);
 
-  // Update stats
-  const total = all.length;
-  const completos  = all.filter(p => getStatus(p) === 'completo').length;
-  const pendentes  = all.filter(p => getStatus(p) === 'pendente').length;
-  const parciais   = all.filter(p => getStatus(p) === 'parcial').length;
-  ['sign-total','sign-completos','sign-pendentes','sign-parciais'].forEach((id, i) => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = [total, completos, pendentes, parciais][i];
-  });
+  const filtered = _signFilter === 'all'      ? all
+                 : _signFilter === 'completo'  ? signed
+                 : _signFilter === 'pendente'  ? pending
+                 : all;
 
   if (!filtered.length) {
     list.innerHTML = '<div style="padding:32px;text-align:center;color:var(--text3);font-size:.84rem">Nenhum paciente encontrado.</div>';
@@ -1344,31 +1346,22 @@ function renderAssinaturasTab() {
 
   list.innerHTML = filtered.map(p => {
     const t = therapists.find(x => x.id === p.therapistId);
-    const st = getStatus(p);
-    const stBadge = st === 'completo'
-      ? '<span style="font-size:.7rem;padding:2px 10px;border-radius:50px;background:rgba(45,212,170,.1);color:var(--teal);border:1px solid rgba(45,212,170,.25);font-weight:600">✅ Completo</span>'
-      : st === 'parcial'
-        ? '<span style="font-size:.7rem;padding:2px 10px;border-radius:50px;background:rgba(79,142,247,.1);color:var(--blue);border:1px solid rgba(79,142,247,.25);font-weight:600">⚠️ Parcial</span>'
-        : '<span style="font-size:.7rem;padding:2px 10px;border-radius:50px;background:rgba(240,180,41,.1);color:var(--yellow);border:1px solid rgba(240,180,41,.25);font-weight:600">⏳ Pendente</span>';
-
-    const signP = p.assinatura_paciente
-      ? '<span style="font-size:.68rem;color:var(--teal)">✍ Paciente ✓</span>'
-      : '<span style="font-size:.68rem;color:var(--text3)">✍ Paciente pendente</span>';
-    const signT = p.assinatura_terapeuta
-      ? '<span style="font-size:.68rem;color:var(--teal)">✍ Terapeuta ✓</span>'
-      : '<span style="font-size:.68rem;color:var(--text3)">✍ Terapeuta pendente</span>';
+    const signed = !!p.assinatura_consentimento;
+    const badge = signed
+      ? '<span style="font-size:.7rem;padding:2px 10px;border-radius:50px;background:rgba(45,212,170,.1);color:var(--teal);border:1px solid rgba(45,212,170,.25);font-weight:600">✅ Assinado</span>'
+      : '<span style="font-size:.7rem;padding:2px 10px;border-radius:50px;background:rgba(240,180,41,.1);color:var(--yellow);border:1px solid rgba(240,180,41,.25);font-weight:600">⏳ Pendente</span>';
+    const signInfo = signed
+      ? '<span style="font-size:.68rem;color:var(--teal)">✍ Assinado em ' + p.assinatura_consentimento + '</span>'
+      : '<span style="font-size:.68rem;color:var(--text3)">✍ Aguardando assinatura</span>';
 
     return '<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)">'
       + '<div style="width:36px;height:36px;border-radius:9px;background:var(--grad);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:.8rem;flex-shrink:0">' + initials(p.nome) + '</div>'
       + '<div style="flex:1;min-width:0">'
         + '<div style="font-size:.85rem;font-weight:600;color:var(--text)">' + p.nome + '</div>'
         + '<div style="font-size:.72rem;color:var(--text3);margin-top:2px">' + p.tipo + (t ? ' · ' + t.nome : '') + '</div>'
-        + '<div style="display:flex;gap:10px;margin-top:5px">' + signP + signT + '</div>'
+        + '<div style="margin-top:4px">' + signInfo + '</div>'
       + '</div>'
-      + '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">'
-        + stBadge
-        + '<button class="btn-secondary" style="font-size:.72rem;padding:4px 10px" onclick="openConsentModal(\'' + p.id + '\')">Ver / Assinar</button>'
-      + '</div>'
+      + '<div style="flex-shrink:0">' + badge + '</div>'
       + '</div>';
   }).join('');
 }
