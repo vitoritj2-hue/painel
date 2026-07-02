@@ -1027,29 +1027,47 @@ patients=pData.map(mapPatient);
 // ══ NOTIFICAÇÕES ADMIN ══
 function startAdminNotifPolling(){
   stopAdminNotifPolling();
-  _knownFichasIds=new Set(patients.map(p=>p.id));
-  _realtimeChannelAdmin=db.channel('rt-admin')
-    .on('postgres_changes',{event:'INSERT',schema:'public',table:'fichas_triagem'},async payload=>{
-      const p=mapPatient(payload.new);
-      if(!_knownFichasIds.has(p.id)){
-        _knownFichasIds.add(p.id);patients.unshift(p);
-        sendDeviceNotif('📋 Nova ficha!',p.nome+' ('+p.tipo+') enviou uma ficha.','/icons/icon-192.png');
-        playNotifSound('ficha');
-        addAdminNotification('triagem','ni-green','Nova ficha: '+p.nome,p.tipo+' · '+p.data);
-        applyFilters();updateMetrics();
+  _knownFichasIds = new Set(patients.map(p=>p.id));
+  _knownCasaisIds = new Set(currentCasais.map(c=>c.id));
+
+  // Poll Neon every 20 seconds for new fichas
+  _realtimeChannelAdmin = setInterval(async ()=>{
+    try {
+      // Check fichas_triagem
+      const {data: newFichas} = await db.from('fichas_triagem').select('*').order('created_at',{ascending:false}).limit(5);
+      if(newFichas){
+        for(const row of newFichas){
+          if(!_knownFichasIds.has(row.id)){
+            _knownFichasIds.add(row.id);
+            const p = mapPatient(row);
+            patients.unshift(p);
+            sendDeviceNotif('📋 Nova ficha!', p.nome+' ('+p.tipo+') enviou uma ficha.', '/icons/icon-192.png');
+            playNotifSound('ficha');
+            addAdminNotification('triagem','ni-green','Nova ficha: '+p.nome, p.tipo+' · '+p.data);
+            applyFilters(); updateMetrics();
+          }
+        }
       }
-    })
-    .on('postgres_changes',{event:'INSERT',schema:'public',table:'fichas_casal'},async payload=>{
-      const c=payload.new;
-      sendDeviceNotif('💑 Nova ficha de casal!',c.p1_nome+' & '+c.p2_nome+' enviaram.','/icons/icon-192.png');
-      playNotifSound('ficha');currentCasais.unshift(c);
-      addAdminNotification('casal','ni-green','Nova ficha de casal',c.p1_nome+' & '+c.p2_nome);
-    }).subscribe();
+      // Check fichas_casal
+      const {data: newCasais} = await db.from('fichas_casal').select('*').order('created_at',{ascending:false}).limit(5);
+      if(newCasais){
+        for(const c of newCasais){
+          if(!_knownCasaisIds.has(c.id)){
+            _knownCasaisIds.add(c.id);
+            currentCasais.unshift(c);
+            sendDeviceNotif('💑 Nova ficha de casal!', c.p1_nome+' & '+c.p2_nome+' enviaram.', '/icons/icon-192.png');
+            playNotifSound('ficha');
+            addAdminNotification('casal','ni-green','Nova ficha de casal', c.p1_nome+' & '+c.p2_nome);
+          }
+        }
+      }
+    } catch(e){ console.warn('Poll erro:', e); }
+  }, 20000);
 }
 let _realtimeChannelAdmin=null;
-let _knownFichasIds=new Set();
+let _knownFichasIds=new Set();let _knownCasaisIds=new Set();
 function stopAdminNotifPolling(){
-  if(_realtimeChannelAdmin){db.removeChannel(_realtimeChannelAdmin);_realtimeChannelAdmin=null;}
+  if(_realtimeChannelAdmin){clearInterval(_realtimeChannelAdmin);_realtimeChannelAdmin=null;}
 }
 
 async function addAdminNotification(icon,cls,title,desc){
