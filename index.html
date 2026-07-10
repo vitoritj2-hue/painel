@@ -1690,9 +1690,10 @@ function setTNivel(val){
 }
 function populateEspFilter(){const sel=document.getElementById('t-filter-esp');if(!sel)return;const cur=sel.value,all=new Set();therapists.forEach(t=>{(t.especialidades||[]).forEach(e=>all.add(e));if(t.esp)all.add(t.esp);});sel.innerHTML='<option value="">Todas</option>';[...all].sort().forEach(e=>{const o=document.createElement('option');o.value=e;o.textContent=e;sel.appendChild(o);});if(cur)sel.value=cur;}
 function applyTherapistFilters(){
+  console.log('[DEBUG] therapists.length=', therapists.length, '| therapists[0]?.nome=', therapists[0]?.nome);
   const q=(document.getElementById('t-search-q')?.value||'').toLowerCase().trim(),mod=document.getElementById('t-filter-modalidade')?.value||'',esp=document.getElementById('t-filter-esp')?.value||'',sort=document.getElementById('t-sort')?.value||'recente';
   let res=therapists.filter(t=>{if(tNivelFilter2!=='all'&&String(t.nivel)!==tNivelFilter2)return false;if(mod&&t.modalidade!==mod)return false;if(esp&&!(t.especialidades||[]).includes(esp)&&t.esp!==esp)return false;if(q){const f=[t.nome,t.crp,t.esp,(t.especialidades||[]).join(' '),t.bio,t.modalidade].join(' ').toLowerCase();if(!f.includes(q))return false;}return true;});
-  res=[...res].sort((a,b)=>{if(sort==='az')return a.nome.localeCompare(b.nome,'pt-BR');if(sort==='za')return b.nome.localeCompare(a.nome,'pt-BR');if(sort==='nivel-asc')return Number(a.nivel)-Number(b.nivel);if(sort==='nivel-desc')return Number(b.nivel)-Number(a.nivel);if(sort==='pacientes')return patients.filter(p=>p.therapistId===b.id).length-patients.filter(p=>p.therapistId===a.id).length;return 0;});
+  res=[...res].sort((a,b)=>{if(sort==='az')return a.nome.localeCompare(b.nome,'pt-BR');if(sort==='za')return b.nome.localeCompare(a.nome,'pt-BR');if(sort==='nivel-asc')return Number(a.nivel)-Number(b.nivel);if(sort==='nivel-desc')return Number(b.nivel)-Number(a.nivel);if(sort==='pacientes')return patients.filter(p=>p.therapistId===b.id).length-patients.filter(p=>p.therapistId===a.id).length;return new Date(b.created_at)-new Date(a.created_at);});
   const cnt=document.getElementById('t-results-count');if(cnt)cnt.textContent=res.length===therapists.length?'Mostrando todos ('+therapists.length+')':res.length+' de '+therapists.length;
   renderTherapistGrid(res);
 }
