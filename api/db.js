@@ -8,7 +8,10 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const { action, table, id, data, fields, order, limit, offset, orderField } = req.body || req.query;
+  // Parse body — handles both pre-parsed object and raw string
+  let body = req.body;
+  if (typeof body === 'string') { try { body = JSON.parse(body); } catch {} }
+  const { action, table, id, data, fields, order, limit, offset, orderField } = body || req.query;
 
   try {
     // SELECT
@@ -37,7 +40,14 @@ export default async function handler(req, res) {
     if (action === 'update') {
       const t = sanitizeTable(table);
       const keys = Object.keys(fields);
-      const vals = Object.values(fields);
+      const vals = keys.map(v => {
+        const val = fields[v];
+        // Serialize arrays/objects to JSON string for JSONB columns
+        if (Array.isArray(val) || (val !== null && typeof val === 'object')) {
+          return JSON.stringify(val);
+        }
+        return val;
+      });
       const sets = keys.map((k, i) => `"${k}" = $${i + 1}`).join(', ');
       vals.push(id);
       await sql(`UPDATE ${t} SET ${sets} WHERE id = $${vals.length}`, vals);
@@ -65,7 +75,7 @@ export default async function handler(req, res) {
 
     return res.status(400).json({ error: 'Ação inválida' });
   } catch (e) {
-    console.error('DB error:', e);
+    console.error('DB error:', e.message, e.stack);
     return res.status(500).json({ data: null, error: e.message });
   }
 }
