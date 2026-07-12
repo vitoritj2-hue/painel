@@ -880,7 +880,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
 const _api = async (body) => {
   try {
     const r = await fetch('/api/db', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
-    if(!r.ok) { console.error('API error:', r.status); return {data:null,error:'HTTP '+r.status}; }
+    if(!r.ok){try{const e=await r.json();return{data:null,error:e.error||'HTTP '+r.status};}catch{return{data:null,error:'HTTP '+r.status};}}
     return r.json();
   } catch(e) {
     console.error('API fetch error:', e);
