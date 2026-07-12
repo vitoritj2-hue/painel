@@ -993,8 +993,13 @@ const WDS=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 
 // ══ DB OPS ══
 async function dbUpdate(table,id,fields){
-  const{error}=await db.from(table).update(fields).eq('id',id);
-  if(error){console.error(table,error);showToast('⚠️ Erro ao salvar ('+table+'). Tente novamente.');return false;}
+  // Serialize arrays/objects to JSON strings for JSONB columns
+  const safeFields={};
+  for(const[k,v] of Object.entries(fields)){
+    safeFields[k]=(Array.isArray(v)||(v!==null&&typeof v==='object'))?JSON.stringify(v):v;
+  }
+  const{error}=await db.from(table).update(safeFields).eq('id',id);
+  if(error){console.error('[dbUpdate] '+table+':',error);showToast('⚠️ Erro: '+String(error).slice(0,80));return false;}
   showSaveIndicator();return true;
 }
 async function dbInsert(table,data){
