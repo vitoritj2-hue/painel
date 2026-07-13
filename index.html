@@ -449,6 +449,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
           <div class="metric-card" style="flex:1"><div class="metric-label">Pacientes individuais</div><div class="metric-value" id="m-total">0</div><div class="metric-accent"></div></div>
           <div class="metric-card" style="flex:1"><div class="metric-label">Casais</div><div class="metric-value" id="m-casais">0</div><div class="metric-accent"></div></div>
           <div class="metric-card" style="flex:1"><div class="metric-label">Terapeutas</div><div class="metric-value" id="m-terapeutas">0</div><div class="metric-accent"></div></div>
+          <div class="metric-card" style="flex:1;cursor:pointer" onclick="switchTab('admin','terapeutas',document.querySelector('[onclick*=terapeutas]'));renderTherapistAdmin()"><div class="metric-label" style="color:var(--red)">🔒 Bloqueados</div><div class="metric-value" id="m-bloqueados">0</div><div class="metric-accent" style="background:var(--red)"></div></div>
         </div>
         <!-- coluna direita: status -->
         <div style="display:flex;flex-direction:column;gap:10px">
@@ -483,6 +484,15 @@ tr:hover td{background:rgba(255,255,255,.015)}
         <div class="data-card-header"><span class="data-card-title" id="table-count-label">Pacientes</span><button class="btn-secondary" onclick="exportCSV()" style="font-size:.76rem;padding:6px 14px">Exportar CSV</button></div>
         <div style="overflow-x:auto"><table><thead><tr><th>Paciente</th><th>Terapeuta</th><th>Sessões</th><th>Status</th><th>Ações</th></tr></thead><tbody id="admin-table-body"></tbody></table></div>
         <div id="admin-load-more-wrap" style="text-align:center;margin-top:12px;display:none"><button class="btn-secondary" onclick="loadMorePatients()">Carregar mais</button></div>
+      </div>
+    </div>
+
+      <!-- Terapeutas Bloqueados -->
+      <div id="dashboard-bloqueados" style="display:none;margin-top:20px">
+        <div style="background:rgba(220,38,38,.08);border-radius:10px 10px 0 0;padding:12px 16px;border:1px solid rgba(220,38,38,.2);border-bottom:none;display:flex;align-items:center;gap:8px">
+          <span style="font-size:.85rem;font-weight:600;color:var(--red)">🔒 Terapeutas Bloqueados</span>
+        </div>
+        <div id="lista-bloqueados" style="border:1px solid rgba(220,38,38,.2);border-radius:0 0 10px 10px;overflow:hidden"></div>
       </div>
     </div>
 
@@ -1894,6 +1904,27 @@ function updateMetrics(){
   document.getElementById('m-final').textContent=patients.filter(p=>p.status==='finalizado').length;
   document.getElementById('m-pausado').textContent=patients.filter(p=>p.status==='pausado').length;
   document.getElementById('m-terapeutas').textContent=therapists.length;
+  // Blocked therapists
+  const bloqueados=therapists.filter(t=>t.bloqueado);
+  const mBloc=document.getElementById('m-bloqueados');
+  if(mBloc) mBloc.textContent=bloqueados.length;
+  const section=document.getElementById('dashboard-bloqueados');
+  const lista=document.getElementById('lista-bloqueados');
+  if(section&&lista){
+    if(bloqueados.length>0){
+      section.style.display='block';
+      lista.innerHTML=bloqueados.map(t=>`
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid rgba(220,38,38,.1);background:var(--bg2)">
+          <div>
+            <div style="font-weight:600;font-size:.85rem">${t.nome}</div>
+            <div style="font-size:.75rem;color:var(--text3)">@${t.username||'—'} · ${t.esp||t.especialidades?.[0]||'Terapeuta'}</div>
+          </div>
+          <button class="btn-secondary" style="font-size:.72rem;padding:4px 10px;color:var(--teal);border-color:var(--teal)" onclick="toggleBloquearTerapeuta('${t.id}')">🔓 Desbloquear</button>
+        </div>`).join('');
+    } else {
+      section.style.display='none';
+    }
+  }
 }
 function statusBadge(s){return{espera:'<span class="sb sb-yellow"><span class="sd sd-y"></span>⏳ Espera</span>',andamento:'<span class="sb sb-blue"><span class="sd sd-b"></span>▶️ Em andamento</span>',pausado:'<span class="sb sb-red"><span class="sd sd-r"></span>⏸️ Pausado</span>',finalizado:'<span class="sb sb-green"><span class="sd sd-g"></span>✅ Finalizado</span>'}[s]||'<span class="sb sb-yellow"><span class="sd sd-y"></span>⏳ Espera</span>';}
 function setStatusFilter(s){activeStatusFilter=s;['all','espera','andamento','pausado','finalizado'].forEach(x=>{const c=document.getElementById('chip-'+x);if(!c)return;c.className='filter-chip';if(x===s)c.classList.add('active-'+x);});applyFilters();}
