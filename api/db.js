@@ -8,13 +8,11 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // Parse body — handles both pre-parsed object and raw string
   let body = req.body;
   if (typeof body === 'string') { try { body = JSON.parse(body); } catch {} }
   const { action, table, id, data, fields, order, limit, offset, orderField } = body || req.query;
 
   try {
-    // SELECT
     if (req.method === 'GET' || action === 'select') {
       const t = sanitizeTable(table);
       const lim = parseInt(limit) || 1000;
@@ -25,7 +23,6 @@ export default async function handler(req, res) {
       return res.json({ data: rows, error: null });
     }
 
-    // INSERT
     if (action === 'insert') {
       const t = sanitizeTable(table);
       const keys = Object.keys(data);
@@ -36,25 +33,34 @@ export default async function handler(req, res) {
       return res.json({ data: rows[0], error: null });
     }
 
-    // UPDATE
     if (action === 'update') {
       const t = sanitizeTable(table);
       const keys = Object.keys(fields);
-      const vals = keys.map(v => {
-        const val = fields[v];
-        // Serialize arrays/objects to JSON string for JSONB columns
-        if (Array.isArray(val) || (val !== null && typeof val === 'object')) {
-          return JSON.stringify(val);
-        }
-        return val;
+      const vals = keys.map(k => {
+        const v = fields[k];
+        return (Array.isArray(v) || (v !== null && typeof v === 'object')) ? JSON.stringify(v) : v;
       });
       const sets = keys.map((k, i) => `"${k}" = $${i + 1}`).join(', ');
       vals.push(id);
-      await sql(`UPDATE ${t} SET ${sets} WHERE id = $${vals.length}`, vals);
+      const queryStr = `UPDATE ${t} SET ${sets} WHERE id = $${vals.length}`;
+      try {
+        await sql(queryStr, vals);
+      } catch (e) {
+        // Auto-migrate: if a column is missing, create it and retry
+        if (e.message && e.message.includes('does not exist')) {
+          for (const k of keys) {
+            const v = fields[k];
+            const colType = typeof v === 'boolean' ? 'BOOLEAN DEFAULT FALSE'
+              : (Array.isArray(v) || (v !== null && typeof v === 'object')) ? 'JSONB'
+              : 'TEXT';
+            await sql(`ALTER TABLE ${t} ADD COLUMN IF NOT EXISTS "${k}" ${colType}`);
+          }
+          await sql(queryStr, vals);
+        } else { throw e; }
+      }
       return res.json({ data: null, error: null });
     }
 
-    // UPSERT
     if (action === 'upsert') {
       const t = sanitizeTable(table);
       const keys = Object.keys(data);
@@ -66,7 +72,6 @@ export default async function handler(req, res) {
       return res.json({ data: null, error: null });
     }
 
-    // DELETE
     if (action === 'delete') {
       const t = sanitizeTable(table);
       await sql(`DELETE FROM ${t} WHERE id = $1`, [id]);
@@ -75,13 +80,13 @@ export default async function handler(req, res) {
 
     return res.status(400).json({ error: 'Ação inválida' });
   } catch (e) {
-    console.error('DB error:', e.message, e.stack);
+    console.error('DB error:', e.message);
     return res.status(500).json({ data: null, error: e.message });
   }
 }
 
 const ALLOWED_TABLES = ['fichas_triagem', 'terapeutas', 'agendamentos', 'admin_notificacoes', 'fichas_casal'];
-const ALLOWED_FIELDS = ['created_at', 'date', 'id', 'nome', 'status', 'updated_at'];
+const ALLOWED_FIELDS  = ['created_at', 'date', 'id', 'nome', 'status', 'updated_at'];
 
 function sanitizeTable(t) {
   if (!ALLOWED_TABLES.includes(t)) throw new Error('Tabela não permitida: ' + t);
