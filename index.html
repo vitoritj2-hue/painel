@@ -1757,7 +1757,7 @@ function renderTherapistGrid(list){
     return'<div class="therapist-card"><div class="tc-header">'+tAvatarHTML(t,44,10)+'<div class="t-info"><h4>'+t.nome+'</h4><p>'+(t.esp||'Terapeuta')+(t.crp?' · CRP '+t.crp:'')+'</p></div><div style="margin-left:auto"><span class="lv lv'+t.nivel+'">Nível '+t.nivel+'</span></div></div>'+bio+'<div class="tc-credentials"><div class="cred-row"><span class="cred-label">Usuário</span><span class="cred-val">'+t.username+'</span></div><div class="cred-row"><span class="cred-label">Senha</span><span class="cred-val">••••••••</span><button class="cred-edit" onclick="editTherapist(\''+t.id+'\')">Editar</button></div><div class="cred-row"><span class="cred-label">Pacientes</span><span class="cred-val">'+qtd+' atribuído(s)</span></div>'+mod+exp+'</div>'+esps+dispSection+'<div class="tc-footer">'+(t.bloqueado?'<span class="tc-badge" style="background:#fee2e2;color:#b91c1c">🔒 Bloqueado</span>':'<span class="tc-badge">✅ Ativo</span>')+'<div style="display:flex;gap:8px;margin-left:auto"><button class="link-btn" style="color:'+(t.bloqueado?'#16a34a':'#b45309')+'" onclick="toggleBloquearTerapeuta(\''+t.id+'\')">'+(t.bloqueado?'🔓 Desbloquear':'🔒 Bloquear')+'</button><button class="link-btn" style="color:var(--red)" onclick="removeTherapist(\''+t.id+'\')">Remover</button></div></div></div>';
   }).join('');
 }
-function renderTherapistAdmin(){populateEspFilter();applyTherapistFilters();}
+function renderTherapistAdmin(){populateEspFilter();clearTherapistFilters();}
 
 // ══ EQUIPE TERAPEUTA ══
 function renderEquipe(){
