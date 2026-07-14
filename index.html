@@ -2148,7 +2148,7 @@ function renderTherapistCards(){
     +(p.sessoes>=6?'<div style="font-size:.7rem;color:var(--teal);font-weight:600;margin-bottom:9px;text-align:center">Contrato concluído</div>':'')
     +(next?'<div style="font-size:.7rem;color:var(--blue);margin-bottom:9px">Próxima: '+fmtDate(next.date)+' às '+next.time+'</div>':'<div style="font-size:.7rem;color:var(--text3);margin-bottom:9px">Sem sessão agendada</div>')
     +'<div class="dev-lbl">Devolutiva <button class="dev-link" onclick="openDevHistory(\''+p.id+'\')">Histórico →</button></div>'
-    +'<textarea class="dev-txt" placeholder="Devolutiva da sessão '+(p.sessoes||1)+'..." onchange="updateDev(\''+p.id+'\',this.value,'+(p.sessoes||1)+')">'+p.devolutiva+'</textarea>'
+    +'<textarea class="dev-txt" placeholder="Devolutiva da sessão '+(p.sessoes||1)+'..." onchange="updateDev(\''+p.id+'\',this.value,'+(p.sessoes||1)+')">'+((p.devolutivas&&p.devolutivas[String(p.sessoes||1)])||'')+'</textarea>'
     +'</div><div class="pcf">'+btns+'<button class="link-btn" style="margin-left:auto;font-size:.72rem;color:var(--blue)" onclick="openFicha(\''+p.id+'\')">📋 Ver ficha completa</button></div></div>';
   }).join('');
 }
