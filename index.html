@@ -2247,7 +2247,7 @@ function populateApptSelect(){const sel=document.getElementById('appt-patient');
 // ══ DEVOLUTIVAS ══
 function openDevHistory(pid){const p=patients.find(x=>x.id===pid);if(!p)return;document.getElementById('dev-history-title').textContent='Devolutivas — '+p.nome;renderDevHistoryList(p);document.getElementById('modal-dev-history').classList.add('open');}
 function renderDevHistoryList(p){
-  const list=document.getElementById('dev-history-list');if(!p.devolutivas)p.devolutivas={};if(p.devolutiva&&p.sessoes>0&&!p.devolutivas[p.sessoes])p.devolutivas[p.sessoes]=p.devolutiva;
+  const list=document.getElementById('dev-history-list');if(!p.devolutivas)p.devolutivas={};if(p.devolutiva&&!p.devolutivas[1])p.devolutivas[1]=p.devolutiva;
   const pa=appointments.filter(a=>a.patientId===p.id).sort((a,b)=>a.date.localeCompare(b.date));
   list.innerHTML=Array.from({length:6},(_,i)=>{const n=i+1,done=n<=p.sessoes,txt=p.devolutivas[n]||'',apt=pa[n-1];
     return'<div class="dev-history-item"><div class="dev-history-header" onclick="toggleDev('+n+')"><div class="dev-sessao-num '+(done?'':'empty')+'">'+n+'</div><div class="dev-sessao-info"><h5>Sessão '+n+' '+(done?'✓':'— pendente')+'</h5><p>'+(apt?fmtDate(apt.date)+' às '+apt.time:(done?'Data não registrada':'Não realizada'))+(txt?' · Registrada':'')+'</p></div><span class="dev-sessao-arrow" id="dev-arrow-'+n+'">›</span></div>'
