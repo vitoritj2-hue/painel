@@ -1910,30 +1910,40 @@ function renderDashboardPending(){
   const list = document.getElementById('dashboard-pending-list');
   const empty = document.getElementById('dashboard-pending-empty');
   if(!list) return;
-  // Pacientes sem terapeuta, em espera primeiro, máx 5
-  const pending = patients
-    .filter(p => !p.therapistId && p.status !== 'finalizado')
-    .sort((a,b) => (a.status==='espera'?0:1)-(b.status==='espera'?0:1))
-    .slice(0,5);
-  if(!pending.length){
+  const sl={espera:'⏳',andamento:'▶️',pausado:'⏸️',finalizado:'✅'};
+  const sc={espera:'var(--yellow)',andamento:'var(--blue)',pausado:'var(--red)',finalizado:'var(--teal)'};
+  // Respeita filtro de status ativo; sem filtro → prioriza sem terapeuta
+  let res = [...patients];
+  if(activeStatusFilter!=='all') res=res.filter(p=>p.status===activeStatusFilter);
+  if(activeStatusFilter==='all'){
+    // sem filtro: mostra os 5 sem terapeuta (espera primeiro), depois os demais até completar 5
+    const semT = res.filter(p=>!p.therapistId)
+      .sort((a,b)=>['espera','andamento','pausado','finalizado'].indexOf(a.status)-['espera','andamento','pausado','finalizado'].indexOf(b.status));
+    const comT = res.filter(p=>!!p.therapistId);
+    res = [...semT,...comT].slice(0,5);
+  } else {
+    res = res.slice(0,5);
+  }
+  if(!res.length){
     list.innerHTML='';
     if(empty) empty.style.display='block';
     return;
   }
   if(empty) empty.style.display='none';
-  const sl={espera:'⏳',andamento:'▶️',pausado:'⏸️',finalizado:'✅'};
-  const sc={espera:'var(--yellow)',andamento:'var(--blue)',pausado:'var(--red)',finalizado:'var(--teal)'};
-  list.innerHTML=pending.map(p=>`
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg3);border:1px solid var(--border2);border-radius:10px;gap:10px;cursor:pointer" onclick="openFicha('${p.id}')">
+  list.innerHTML=res.map(p=>{
+    const semT=!p.therapistId;
+    const t=therapists.find(x=>x.id===p.therapistId);
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg3);border:1px solid var(--border2);border-radius:10px;gap:10px;cursor:pointer" onclick="openFicha('${p.id}')">
       <div style="min-width:0">
         <div style="font-size:.84rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.nome}</div>
-        <div style="font-size:.72rem;color:var(--text3);margin-top:2px">${p.tipo} · ${p.data||'—'}</div>
+        <div style="font-size:.72rem;color:var(--text3);margin-top:2px">${p.tipo} · ${t?t.nome:'<span style="color:var(--red)">Sem terapeuta</span>'}</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
         <span style="font-size:.7rem;color:${sc[p.status]||'var(--text3)'};font-weight:600">${sl[p.status]||''} ${p.status}</span>
-        <button class="btn-primary" style="font-size:.7rem;padding:4px 10px;white-space:nowrap" onclick="event.stopPropagation();openAssign('${p.id}')">Atribuir</button>
+        ${semT?`<button class="btn-primary" style="font-size:.7rem;padding:4px 10px;white-space:nowrap" onclick="event.stopPropagation();openAssign('${p.id}')">Atribuir</button>`:''}
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function updateMetrics(){
@@ -1968,7 +1978,7 @@ function updateMetrics(){
   }
 }
 function statusBadge(s){return{espera:'<span class="sb sb-yellow"><span class="sd sd-y"></span>⏳ Espera</span>',andamento:'<span class="sb sb-blue"><span class="sd sd-b"></span>▶️ Em andamento</span>',pausado:'<span class="sb sb-red"><span class="sd sd-r"></span>⏸️ Pausado</span>',finalizado:'<span class="sb sb-green"><span class="sd sd-g"></span>✅ Finalizado</span>'}[s]||'<span class="sb sb-yellow"><span class="sd sd-y"></span>⏳ Espera</span>';}
-function setStatusFilter(s){activeStatusFilter=s;['all','espera','andamento','pausado','finalizado'].forEach(x=>{const c=document.getElementById('chip-'+x);if(!c)return;c.className='filter-chip';if(x===s)c.classList.add('active-'+x);});applyFilters();}
+function setStatusFilter(s){activeStatusFilter=s;['all','espera','andamento','pausado','finalizado'].forEach(x=>{const c=document.getElementById('chip-'+x);if(!c)return;c.className='filter-chip';if(x===s)c.classList.add('active-'+x);});applyFilters();;renderDashboardPending();}
 function applyFilters(){
   const q=(document.getElementById('search-q')?.value||'').trim();
   const tipo=document.getElementById('filter-tipo')?.value||'';
