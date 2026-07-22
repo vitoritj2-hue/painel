@@ -1731,7 +1731,7 @@ function applyTherapistFilters(){
   console.log('[DEBUG] therapists.length=', therapists.length, '| therapists[0]?.nome=', therapists[0]?.nome);
   const q=(document.getElementById('t-search-q')?.value||'').toLowerCase().trim(),mod=document.getElementById('t-filter-modalidade')?.value||'',esp=document.getElementById('t-filter-esp')?.value||'',sort=document.getElementById('t-sort')?.value||'recente';
   let res=therapists.filter(t=>{if(tNivelFilter2!=='all'&&String(t.nivel)!==tNivelFilter2)return false;if(mod&&t.modalidade!==mod)return false;if(esp&&!(t.especialidades||[]).includes(esp)&&t.esp!==esp)return false;if(q){const f=[t.nome,t.crp,t.esp,(t.especialidades||[]).join(' '),t.bio,t.modalidade].join(' ').toLowerCase();if(!f.includes(q))return false;}return true;});
-  res=[...res].sort((a,b)=>{if(sort==='az')return a.nome.localeCompare(b.nome,'pt-BR');if(sort==='za')return b.nome.localeCompare(a.nome,'pt-BR');if(sort==='nivel-asc')return Number(a.nivel)-Number(b.nivel);if(sort==='nivel-desc')return Number(b.nivel)-Number(a.nivel);if(sort==='pacientes')return patients.filter(p=>p.therapistId===b.id).length-patients.filter(p=>p.therapistId===a.id).length;return new Date(b.created_at)-new Date(a.created_at);});
+  res=[...res].sort((a,b)=>{if(sort==='az')return a.nome.localeCompare(b.nome,'pt-BR');if(sort==='za')return b.nome.localeCompare(a.nome,'pt-BR');if(sort==='nivel-asc')return Number(a.nivel)-Number(b.nivel);if(sort==='nivel-desc')return Number(b.nivel)-Number(a.nivel);if(sort==='pacientes')return patients.filter(p=>p.therapistId===b.id&&p.status!=='finalizado').length-patients.filter(p=>p.therapistId===a.id&&p.status!=='finalizado').length;return new Date(b.created_at)-new Date(a.created_at);});
   const cnt=document.getElementById('t-results-count');if(cnt)cnt.textContent=res.length===therapists.length?'Mostrando todos ('+therapists.length+')':res.length+' de '+therapists.length;
   renderTherapistGrid(res);
 }
@@ -1753,7 +1753,7 @@ function renderTherapistGrid(list){
   const grid=document.getElementById('therapist-admin-grid');if(!grid)return;
   if(!list.length){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1"><div class="es-icon">◎</div><p>Nenhum terapeuta encontrado.</p></div>';return;}
   grid.innerHTML=list.map(t=>{
-    const qtd=patients.filter(p=>p.therapistId===t.id).length;
+    const qtd=patients.filter(p=>p.therapistId===t.id&&p.status!=='finalizado').length;
     const bio=t.bio?'<div style="font-size:.76rem;color:var(--text2);line-height:1.5;padding:10px 12px;background:var(--bg2);border-radius:8px;margin-bottom:10px;border:1px solid var(--border)">'+t.bio+'</div>':'';
     const esps=(t.especialidades&&t.especialidades.length)?'<div style="display:flex;flex-wrap:wrap;gap:5px;margin:10px 0">'+t.especialidades.map(e=>'<span style="font-size:.65rem;padding:2px 8px;border-radius:50px;background:rgba(45,212,170,.08);border:1px solid rgba(45,212,170,.2);color:var(--teal)">'+e+'</span>').join('')+'</div>':'';
     const mod=t.modalidade?'<div class="cred-row"><span class="cred-label">Modalidade</span><span class="cred-val">'+t.modalidade+'</span></div>':'';
@@ -1844,9 +1844,9 @@ function renderAssignList(type,q){
   }
   if(!filtered.length){list.innerHTML='<div style="padding:12px;text-align:center;color:var(--text3);font-size:.78rem">Nenhum resultado.</div>';return;}
   list.innerHTML=filtered.slice(0,20).map(x=>{
-    const atribuido=type==='patient'&&!!x.therapistId;
+    const atribuido=type==='patient'&&!!x.therapistId&&x.status!=='finalizado';
     const tipoPill=x._isCasal?'<span style="font-size:.6rem;background:rgba(45,212,170,.1);color:var(--teal);border-radius:50px;padding:1px 7px;border:1px solid rgba(45,212,170,.2);margin-right:4px">Casal</span>':'';
-    const sub=type==='patient'?(x.therapistId?(therapists.find(t=>t.id===x.therapistId)?.nome||'Atribuído'):'Sem terapeuta'):(x.esp||'Terapeuta');
+    const ativosDoT=type==='therapist'?patients.filter(p=>p.therapistId===x.id&&p.status!=='finalizado').length:0;const sub=type==='patient'?(x.therapistId?(therapists.find(t=>t.id===x.therapistId)?.nome||'Atribuído'):'Sem terapeuta'):(x.esp||'Terapeuta');
     const bloqueado=type==='therapist'&&!!x.bloqueado;
     const badge=atribuido?'<span style="font-size:.6rem;background:rgba(90,106,138,.15);color:var(--text3);border-radius:50px;padding:1px 7px;border:1px solid var(--border2)">Atribuído</span>'      :bloqueado?'<span style="font-size:.6rem;background:rgba(220,38,38,.12);color:var(--red);border-radius:50px;padding:1px 7px;border:1px solid rgba(220,38,38,.25)">🔒 Bloqueado</span>':'';
     const safeNome=x.nome.replace(/'/g,"\\'");
@@ -1917,9 +1917,9 @@ function renderDashboardPending(){
   if(activeStatusFilter!=='all') res=res.filter(p=>p.status===activeStatusFilter);
   if(activeStatusFilter==='all'){
     // sem filtro: mostra os 5 sem terapeuta (espera primeiro), depois os demais até completar 5
-    const semT = res.filter(p=>!p.therapistId)
+    const semT = res.filter(p=>!p.therapistId&&p.status!=='finalizado')
       .sort((a,b)=>['espera','andamento','pausado','finalizado'].indexOf(a.status)-['espera','andamento','pausado','finalizado'].indexOf(b.status));
-    const comT = res.filter(p=>!!p.therapistId);
+    const comT = res.filter(p=>!!p.therapistId&&p.status!=='finalizado');
     res = [...semT,...comT].slice(0,5);
   } else {
     res = res.slice(0,5);
@@ -2167,7 +2167,7 @@ function clearContract(prefix){['nome','tel','email','data','valor'].forEach(f=>
 async function refreshTherapist(){await loadData();renderTherapistCards();renderObsList();populateContractSelect('t');updateTherapistHeader();renderNotifPanel('t');}
 function myPatients(){
   if(!currentTherapist) return [];
-  const indiv = patients.filter(p=>p.therapistId===currentTherapist.id);
+  const indiv = patients.filter(p=>p.therapistId===currentTherapist.id&&p.status!=='finalizado');
   const casal = currentCasais
     .filter(c=>c.therapistId===currentTherapist.id)
     .map(c=>({
@@ -2702,7 +2702,7 @@ function filterAgendaTerapeutas(q) {
     return;
   }
   list.innerHTML = allOption + filtered.map(t => {
-    const qtd = patients.filter(p => p.therapistId === t.id).length;
+    const qtd = patients.filter(p => p.therapistId === t.id && p.status !== 'finalizado').length;
     const temDisp = t.disponibilidade && Object.values(t.disponibilidade).some(s=>Array.isArray(s)&&s.length>0);
     return '<div onclick="selectAgendaTerapeuta(\'' + t.id + '\',\'' + t.nome.replace(/'/g,"\\'") + '\')" '
       + 'style="padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);transition:background .15s" '
