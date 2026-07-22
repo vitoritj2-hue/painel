@@ -482,7 +482,9 @@ tr:hover td{background:rgba(255,255,255,.015)}
       </div>
       <div class="data-card">
         <div class="data-card-header"><span class="data-card-title" id="table-count-label">Pacientes</span><button class="btn-secondary" onclick="exportCSV()" style="font-size:.76rem;padding:6px 14px">Exportar CSV</button></div>
-        <div style="overflow-x:auto"><table><thead><tr><th>Paciente</th><th>Terapeuta</th><th>Sessões</th><th>Status</th><th>Ações</th></tr></thead><tbody id="admin-table-body"></tbody></table></div>
+        <div style="overflow-x:auto"><div style="font-size:.78rem;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">⏳ Aguardando terapeuta</div>
+      <div id="dashboard-pending-list" style="display:flex;flex-direction:column;gap:6px"></div>
+      <div id="dashboard-pending-empty" style="display:none;text-align:center;padding:24px;color:var(--text3);font-size:.85rem">✅ Todos os pacientes têm terapeuta atribuído!</div></div>
         <div id="admin-load-more-wrap" style="text-align:center;margin-top:12px;display:none"><button class="btn-secondary" onclick="loadMorePatients()">Carregar mais</button></div>
       </div>
     </div>
@@ -1900,6 +1902,37 @@ async function resetAll(){
 
 // ══ ADMIN ══
 async function refreshAdmin(){await loadData();updateMetrics();populateFilterTerapeuta();applyFilters();renderFichasTable(patients);renderCasaisTable(currentCasais);populateContractSelect('admin');renderNotifPanel('admin');}
+
+function renderDashboardPending(){
+  const list = document.getElementById('dashboard-pending-list');
+  const empty = document.getElementById('dashboard-pending-empty');
+  if(!list) return;
+  // Pacientes sem terapeuta, em espera primeiro, máx 5
+  const pending = patients
+    .filter(p => !p.therapistId && p.status !== 'finalizado')
+    .sort((a,b) => (a.status==='espera'?0:1)-(b.status==='espera'?0:1))
+    .slice(0,5);
+  if(!pending.length){
+    list.innerHTML='';
+    if(empty) empty.style.display='block';
+    return;
+  }
+  if(empty) empty.style.display='none';
+  const sl={espera:'⏳',andamento:'▶️',pausado:'⏸️',finalizado:'✅'};
+  const sc={espera:'var(--yellow)',andamento:'var(--blue)',pausado:'var(--red)',finalizado:'var(--teal)'};
+  list.innerHTML=pending.map(p=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg3);border:1px solid var(--border2);border-radius:10px;gap:10px;cursor:pointer" onclick="openFicha('${p.id}')">
+      <div style="min-width:0">
+        <div style="font-size:.84rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.nome}</div>
+        <div style="font-size:.72rem;color:var(--text3);margin-top:2px">${p.tipo} · ${p.data||'—'}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+        <span style="font-size:.7rem;color:${sc[p.status]||'var(--text3)'};font-weight:600">${sl[p.status]||''} ${p.status}</span>
+        <button class="btn-primary" style="font-size:.7rem;padding:4px 10px;white-space:nowrap" onclick="event.stopPropagation();openAssign('${p.id}')">Atribuir</button>
+      </div>
+    </div>`).join('');
+}
+
 function updateMetrics(){
   document.getElementById('m-total').textContent=patients.length;
   document.getElementById('m-casais').textContent=currentCasais.length;
@@ -1912,6 +1945,7 @@ function updateMetrics(){
   const bloqueados=therapists.filter(t=>t.bloqueado);
   const mBloc=document.getElementById('m-bloqueados');
   if(mBloc) mBloc.textContent=bloqueados.length;
+  renderDashboardPending();
   const section=document.getElementById('dashboard-bloqueados');
   const lista=document.getElementById('lista-bloqueados');
   if(section&&lista){
