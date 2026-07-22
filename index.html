@@ -2831,11 +2831,26 @@ function populateAssignPatientList(q){
 function populateAssignTherapistList(q){
   const el=document.getElementById('assign-therapist-list');
   const f=q.toLowerCase();
-  const list=therapists.filter(t=>!f||t.nome.toLowerCase().includes(f)).slice(0,20);
-  el.innerHTML=list.length?list.map(t=>`<div style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border)" onclick="selectAssignTherapist('${t.id}','${t.nome.replace(/'/g,"\'")}')">
-    <div style="font-size:.85rem;font-weight:600">${t.nome}</div>
-    <div style="font-size:.75rem;color:var(--text2)">${t.especialidade||''}</div>
-  </div>`).join(''):'<div style="padding:12px;color:var(--text2);font-size:.82rem">Nenhum terapeuta</div>';
+  let list=therapists.filter(t=>!f||t.nome.toLowerCase().includes(f));
+  // disponíveis primeiro, bloqueados por último
+  list=[...list.filter(t=>!t.bloqueado),...list.filter(t=>t.bloqueado)];
+  list=list.slice(0,20);
+  el.innerHTML=list.length?list.map(t=>{
+    const bloqueado=!!t.bloqueado;
+    if(bloqueado){
+      return `<div style="padding:9px 12px;border-bottom:1px solid var(--border);opacity:.45;cursor:not-allowed;user-select:none;background:rgba(220,38,38,.04);display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-size:.85rem;font-weight:600">${t.nome}</div>
+          <div style="font-size:.75rem;color:var(--text2)">${t.esp||t.especialidades?.[0]||''}</div>
+        </div>
+        <span style="font-size:.65rem;background:rgba(220,38,38,.12);color:var(--red);border-radius:50px;padding:2px 8px;border:1px solid rgba(220,38,38,.25);white-space:nowrap">🔒 Bloqueado</span>
+      </div>`;
+    }
+    return `<div style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border)" onclick="selectAssignTherapist('${t.id}','${t.nome.replace(/'/g,"\'")}')">
+      <div style="font-size:.85rem;font-weight:600">${t.nome}</div>
+      <div style="font-size:.75rem;color:var(--text2)">${t.esp||t.especialidades?.[0]||''}</div>
+    </div>`;
+  }).join(''):'<div style="padding:12px;color:var(--text2);font-size:.82rem">Nenhum terapeuta</div>';
 }
 function selectAssignPatient(id,nome){
   document.getElementById('assign-patient-id').value=id;
