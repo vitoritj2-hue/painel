@@ -1833,17 +1833,21 @@ function renderAssignList(type,q){
   if(type==='patient'){
     // disponíveis primeiro, atribuídos por último
     filtered=[...filtered.filter(x=>!x.therapistId),...filtered.filter(x=>x.therapistId)];
+  } else {
+    // disponíveis primeiro, bloqueados por último
+    filtered=[...filtered.filter(x=>!x.bloqueado),...filtered.filter(x=>x.bloqueado)];
   }
   if(!filtered.length){list.innerHTML='<div style="padding:12px;text-align:center;color:var(--text3);font-size:.78rem">Nenhum resultado.</div>';return;}
   list.innerHTML=filtered.slice(0,20).map(x=>{
     const atribuido=type==='patient'&&!!x.therapistId;
     const tipoPill=x._isCasal?'<span style="font-size:.6rem;background:rgba(45,212,170,.1);color:var(--teal);border-radius:50px;padding:1px 7px;border:1px solid rgba(45,212,170,.2);margin-right:4px">Casal</span>':'';
     const sub=type==='patient'?(x.therapistId?(therapists.find(t=>t.id===x.therapistId)?.nome||'Atribuído'):'Sem terapeuta'):(x.esp||'Terapeuta');
-    const badge=atribuido?'<span style="font-size:.6rem;background:rgba(90,106,138,.15);color:var(--text3);border-radius:50px;padding:1px 7px;border:1px solid var(--border2)">Atribuído</span>':'';
+    const bloqueado=type==='therapist'&&!!x.bloqueado;
+    const badge=atribuido?'<span style="font-size:.6rem;background:rgba(90,106,138,.15);color:var(--text3);border-radius:50px;padding:1px 7px;border:1px solid var(--border2)">Atribuído</span>'      :bloqueado?'<span style="font-size:.6rem;background:rgba(220,38,38,.12);color:var(--red);border-radius:50px;padding:1px 7px;border:1px solid rgba(220,38,38,.25)">🔒 Bloqueado</span>':'';
     const safeNome=x.nome.replace(/'/g,"\\'");
-    if(atribuido){
+    if(atribuido||bloqueado){
       // escurecido e sem clique
-      return'<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-bottom:1px solid var(--border);font-size:.82rem;opacity:.42;cursor:not-allowed;user-select:none">'
+      return'<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-bottom:1px solid var(--border);font-size:.82rem;opacity:.42;cursor:not-allowed;user-select:none;'+(bloqueado?'background:rgba(220,38,38,.04)':'')+'">'
         +'<div><div style="color:var(--text);font-weight:500">'+tipoPill+x.nome+'</div>'
         +'<div style="font-size:.68rem;color:var(--text3);margin-top:1px">'+sub+'</div></div>'+badge+'</div>';
     }
