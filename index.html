@@ -2363,11 +2363,61 @@ async function saveDev(n,pid){const p=patients.find(x=>x.id===pid);if(!p)return;
 
 // ══ RELATÓRIO ══
 function renderRelatorioList(scope){const list=scope==='t'&&currentTherapist?patients.filter(p=>p.therapistId===currentTherapist.id):patients;const el=document.getElementById('rel-list-'+scope);if(!el)return;if(!list.length){el.innerHTML='<div style="padding:18px;text-align:center;color:var(--text3);font-size:.8rem">Nenhum paciente.</div>';return;}el.innerHTML=list.map(p=>{const sc={espera:'var(--yellow)',andamento:'var(--blue)',pausado:'var(--red)',finalizado:'var(--teal)'}[p.status]||'var(--yellow)';return'<div class="rel-patient-item" id="rpi-'+scope+'-'+p.id+'" onclick="renderRelatorio(\''+scope+'\',\''+p.id+'\')"><div class="rp-avatar">'+initials(p.nome)+'</div><div class="rp-info"><h5>'+p.nome+'</h5><p>'+p.tipo+' · <span style="color:'+sc+';font-weight:600">'+({espera:'⏳ Espera',andamento:'▶️ Em andamento',pausado:'⏸️ Pausado',finalizado:'✅ Finalizado'}[p.status]||'Espera')+'</span></p></div><div class="rp-sessoes">'+p.sessoes+'/6</div></div>';}).join('');}
+
+function openRelDevEdit(pid,n){
+  document.getElementById('rel-dev-view-'+pid+'-'+n).style.display='none';
+  document.getElementById('rel-dev-edit-'+pid+'-'+n).style.display='block';
+  const ta=document.getElementById('rel-dev-ta-'+pid+'-'+n);
+  if(ta){ta.focus();ta.setSelectionRange(ta.value.length,ta.value.length);}
+}
+function cancelRelDevEdit(pid,n){
+  document.getElementById('rel-dev-edit-'+pid+'-'+n).style.display='none';
+  document.getElementById('rel-dev-view-'+pid+'-'+n).style.display='';
+}
+async function saveRelDev(pid,n){
+  const ta=document.getElementById('rel-dev-ta-'+pid+'-'+n);
+  if(!ta)return;
+  const txt=ta.value;
+  const p=patients.find(x=>x.id===pid);
+  if(!p)return;
+  if(!p.devolutivas)p.devolutivas={};
+  p.devolutivas[String(n)]=txt;
+  if(n===p.sessoes)p.devolutiva=txt;
+  const ok=await dbUpdate('fichas_triagem',pid,{devolutiva:p.devolutiva,devolutivas:JSON.stringify(p.devolutivas)});
+  if(ok){
+    const view=document.getElementById('rel-dev-view-'+pid+'-'+n);
+    if(view){view.textContent=txt;view.style.cssText='';}
+    cancelRelDevEdit(pid,n);
+    showToast('✅ Devolutiva atualizada!');
+  }
+}
+
 function renderRelatorio(scope,pid){
   document.querySelectorAll('[id^="rpi-'+scope+'-"]').forEach(el=>el.classList.remove('active'));const item=document.getElementById('rpi-'+scope+'-'+pid);if(item)item.classList.add('active');
   const p=patients.find(x=>x.id===pid);if(!p)return;
   const t=therapists.find(x=>x.id===p.therapistId),pa=appointments.filter(a=>a.patientId===pid).sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time)),pct=Math.round((p.sessoes/6)*100),sl={espera:'⏳ Espera',andamento:'▶️ Em Andamento',pausado:'⏸️ Pausado',finalizado:'✅ Finalizado'}[p.status]||p.status,sc={espera:'var(--yellow)',andamento:'var(--blue)',pausado:'var(--red)',finalizado:'var(--teal)'}[p.status]||'var(--yellow)';
-  const tlHTML=p.sessoes?Array.from({length:p.sessoes},(_,i)=>{const n=i+1,apt=pa[n-1],dv=(p.devolutivas&&p.devolutivas[n])||(n===p.sessoes?p.devolutiva:'');return'<div class="rel-tl-item"><div class="rel-tl-dot">'+n+'</div><div class="rel-tl-body"><div class="rel-tl-header"><span class="rel-tl-title">Sessão '+n+'</span>'+(apt?'<span class="rel-tl-date">'+fmtDate(apt.date)+' às '+apt.time+'</span>':'<span class="rel-tl-date" style="color:var(--text3)">Data não registrada</span>')+'</div>'+(dv?'<div class="rel-tl-text">'+dv+'</div>':'<div style="font-size:.74rem;color:var(--text3);font-style:italic">Sem devolutiva.</div>')+'</div></div>';}).join(''):'<p style="color:var(--text3);font-size:.78rem;font-style:italic">Nenhuma sessão.</p>';
+  const tlHTML=p.sessoes?Array.from({length:p.sessoes},(_,i)=>{
+    const n=i+1,apt=pa[n-1],dv=(p.devolutivas&&p.devolutivas[n])||(n===p.sessoes?p.devolutiva:'');
+    const editBtn=scope==='t'
+      ?'<button data-pid="'+p.id+'" data-n="'+n+'" onclick="openRelDevEdit(this.dataset.pid,this.dataset.n)" style="background:none;border:1px solid var(--border2);border-radius:6px;padding:2px 8px;cursor:pointer;font-size:.72rem;color:var(--text3);margin-left:auto;flex-shrink:0">✏️ Editar</button>'
+      :'';
+    const dvDisplay=dv
+      ?'<div class="rel-tl-text" id="rel-dev-view-'+p.id+'-'+n+'">'+dv+'</div>'
+      :'<div id="rel-dev-view-'+p.id+'-'+n+'" style="font-size:.74rem;color:var(--text3);font-style:italic">Sem devolutiva.</div>';
+    const editForm='<div id="rel-dev-edit-'+p.id+'-'+n+'" style="display:none;margin-top:8px">'
+      +'<textarea style="width:100%;min-height:80px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px;font-size:.82rem;color:var(--text);line-height:1.6;resize:vertical;box-sizing:border-box" id="rel-dev-ta-'+p.id+'-'+n+'" placeholder="Devolutiva da sessão '+n+'...">'+dv+'</textarea>'
+      +'<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px">'
+      +'<button data-pid="'+p.id+'" data-n="'+n+'" onclick="cancelRelDevEdit(this.dataset.pid,this.dataset.n)" style="background:none;border:1px solid var(--border2);border-radius:6px;padding:4px 12px;cursor:pointer;font-size:.78rem;color:var(--text3)">Cancelar</button>'
+      +'<button data-pid="'+p.id+'" data-n="'+n+'" onclick="saveRelDev(this.dataset.pid,this.dataset.n)" class="btn-primary" style="font-size:.78rem;padding:4px 14px">Salvar</button>'
+      +'</div></div>';
+    return '<div class="rel-tl-item"><div class="rel-tl-dot">'+n+'</div><div class="rel-tl-body">'
+      +'<div class="rel-tl-header" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+      +'<span class="rel-tl-title">Sessão '+n+'</span>'
+      +(apt?'<span class="rel-tl-date">'+fmtDate(apt.date)+' às '+apt.time+'</span>':'<span class="rel-tl-date" style="color:var(--text3)">Data não registrada</span>')
+      +editBtn+'</div>'
+      +dvDisplay+editForm
+      +'</div></div>';
+  }).join(''):'<p style="color:var(--text3);font-size:.78rem;font-style:italic">Nenhuma sessão.</p>';
   const content=document.getElementById('rel-content-'+scope);if(!content)return;
   content.innerHTML='<div class="rel-card"><div class="rel-card-header"><div style="display:flex;align-items:center;gap:10px"><div style="width:36px;height:36px;border-radius:9px;background:var(--grad);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:.8rem">'+initials(p.nome)+'</div><div><h4 style="font-size:.96rem">'+p.nome+'</h4><p style="font-size:.7rem;color:var(--text2);margin-top:1px">'+p.tipo+' · '+p.data+(t?' · '+t.nome:'')+'</p></div></div><button class="print-btn" onclick="window.print()">Imprimir</button></div>'
   +'<div class="rel-card-body"><div class="rel-hero"><div class="rel-stat"><div class="rel-stat-val">'+p.sessoes+'</div><div class="rel-stat-lbl">Feitas</div></div><div class="rel-stat"><div class="rel-stat-val">'+(6-p.sessoes)+'</div><div class="rel-stat-lbl">Restam</div></div><div class="rel-stat"><div class="rel-stat-val">'+pa.length+'</div><div class="rel-stat-lbl">Agend.</div></div><div class="rel-stat"><div class="rel-stat-val" style="font-size:.9rem;color:'+sc+'">'+sl+'</div><div class="rel-stat-lbl">Status</div></div></div>'
