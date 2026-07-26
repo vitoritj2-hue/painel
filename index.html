@@ -2298,12 +2298,64 @@ function populateApptSelect(){const sel=document.getElementById('appt-patient');
 // ══ DEVOLUTIVAS ══
 function openDevHistory(pid){const p=patients.find(x=>x.id===pid);if(!p)return;document.getElementById('dev-history-title').textContent='Devolutivas — '+p.nome;renderDevHistoryList(p);document.getElementById('modal-dev-history').classList.add('open');}
 function renderDevHistoryList(p){
-  const list=document.getElementById('dev-history-list');if(!p.devolutivas)p.devolutivas={};if(p.devolutiva&&!p.devolutivas[1])p.devolutivas[1]=p.devolutiva;
+  const list=document.getElementById('dev-history-list');
+  if(!p.devolutivas)p.devolutivas={};
+  if(p.devolutiva&&!p.devolutivas[1])p.devolutivas[1]=p.devolutiva;
   const pa=appointments.filter(a=>a.patientId===p.id).sort((a,b)=>a.date.localeCompare(b.date));
-  list.innerHTML=Array.from({length:6},(_,i)=>{const n=i+1,done=n<=p.sessoes,txt=p.devolutivas[n]||'',apt=pa[n-1];
-    return'<div class="dev-history-item"><div class="dev-history-header" onclick="toggleDev('+n+')"><div class="dev-sessao-num '+(done?'':'empty')+'">'+n+'</div><div class="dev-sessao-info"><h5>Sessão '+n+' '+(done?'✓':'— pendente')+'</h5><p>'+(apt?fmtDate(apt.date)+' às '+apt.time:(done?'Data não registrada':'Não realizada'))+(txt?' · Registrada':'')+'</p></div><span class="dev-sessao-arrow" id="dev-arrow-'+n+'">›</span></div>'
-    +'<div class="dev-history-body" id="dev-body-'+n+'"><textarea class="dev-textarea" id="dev-text-'+n+'" '+(done?'':'disabled')+' placeholder="'+(done?'Devolutiva da sessão '+n+'...':'Sessão não realizada.')+'" oninput="updateDevCount('+n+')">'+txt+'</textarea><div class="dev-save-row"><span class="dev-char-count" id="dev-count-'+n+'">'+txt.length+' caracteres</span>'+(done?'<button class="dev-save-btn" onclick="saveDev('+n+',\''+p.id+'\')">Salvar</button>':'')+'</div></div></div>';
+  list.innerHTML=Array.from({length:6},(_,i)=>{
+    const n=i+1, done=n<=p.sessoes, txt=p.devolutivas[String(n)]||'', apt=pa[n-1];
+    const temDev=txt.trim().length>0;
+    const pid=p.id;
+    const safeText=txt.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>');
+    const viewHtml=done&&temDev
+      ? '<div class="dev-text-view" id="dev-view-'+n+'" style="white-space:pre-wrap;padding:10px 12px;font-size:.82rem;line-height:1.6;color:var(--text2);background:var(--bg2);border-radius:8px;margin-bottom:8px">'+safeText+'</div>'
+      : '';
+    const taStyle='display:'+(done&&temDev?'none':'block');
+    const rowStyle='display:'+(done&&temDev?'none':'flex');
+    const editBtn=done
+      ? '<button class="dev-edit-btn" id="dev-edit-btn-'+n+'" onclick="event.stopPropagation();enableDevEdit('+n+',\''+pid+'\')" title="Editar devolutiva" style="background:none;border:1px solid var(--border2);border-radius:6px;padding:3px 8px;cursor:pointer;font-size:.75rem;color:var(--text3);margin-right:4px">✏️ Editar</button>'
+      : '';
+    const saveBtn=done
+      ? '<button class="dev-save-btn" onclick="saveDev('+n+',\''+pid+'\')">Salvar</button>'
+      : '';
+    return '<div class="dev-history-item">'
+      +'<div class="dev-history-header" onclick="toggleDev('+n+')">'
+        +'<div class="dev-sessao-num '+(done?'':'empty')+'">'+n+'</div>'
+        +'<div class="dev-sessao-info"><h5>Sessão '+n+' '+(done?'✓':'— pendente')+'</h5>'
+        +'<p>'+(apt?fmtDate(apt.date)+' às '+apt.time:(done?'Data não registrada':'Não realizada'))
+        +(temDev?' · <span style="color:var(--teal)">Registrada ✓</span>':'')+'</p></div>'
+        +editBtn
+        +'<span class="dev-sessao-arrow" id="dev-arrow-'+n+'">›</span>'
+      +'</div>'
+      +'<div class="dev-history-body" id="dev-body-'+n+'">'
+        +viewHtml
+        +'<textarea class="dev-textarea" id="dev-text-'+n+'" style="'+taStyle+'" '+(done?'':'disabled')
+        +' placeholder="'+(done?'Devolutiva da sessão '+n+'...':'Sessão não realizada.')+'" oninput="updateDevCount('+n+')">'+txt+'</textarea>'
+        +'<div class="dev-save-row" id="dev-save-row-'+n+'" style="'+rowStyle+'">'
+          +'<span class="dev-char-count" id="dev-count-'+n+'">'+txt.length+' caracteres</span>'
+          +saveBtn
+        +'</div>'
+      +'</div></div>';
   }).join('');
+}
+
+function enableDevEdit(n,pid){
+  const view=document.getElementById('dev-view-'+n);
+  const ta=document.getElementById('dev-text-'+n);
+  const row=document.getElementById('dev-save-row-'+n);
+  const btn=document.getElementById('dev-edit-btn-'+n);
+  const body=document.getElementById('dev-body-'+n);
+  const arrow=document.getElementById('dev-arrow-'+n);
+  if(view) view.style.display='none';
+  if(ta){ta.style.display='block';setTimeout(()=>{ta.focus();ta.setSelectionRange(ta.value.length,ta.value.length);},50);}
+  if(row) row.style.display='flex';
+  if(btn) btn.style.display='none';
+  if(body&&!body.classList.contains('open')){
+    document.querySelectorAll('.dev-history-body').forEach(x=>x.classList.remove('open'));
+    document.querySelectorAll('.dev-sessao-arrow').forEach(x=>x.classList.remove('open'));
+    body.classList.add('open');
+    if(arrow) arrow.classList.add('open');
+  }
 }
 function toggleDev(n){const b=document.getElementById('dev-body-'+n),a=document.getElementById('dev-arrow-'+n);const o=b.classList.contains('open');document.querySelectorAll('.dev-history-body').forEach(x=>x.classList.remove('open'));document.querySelectorAll('.dev-sessao-arrow').forEach(x=>x.classList.remove('open'));if(!o){b.classList.add('open');a.classList.add('open');}}
 function updateDevCount(n){const t=document.getElementById('dev-text-'+n),c=document.getElementById('dev-count-'+n);if(t&&c)c.textContent=t.value.length+' caracteres';}
