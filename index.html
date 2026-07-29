@@ -2167,7 +2167,7 @@ function clearContract(prefix){['nome','tel','email','data','valor'].forEach(f=>
 async function refreshTherapist(){await loadData();renderTherapistCards();renderObsList();populateContractSelect('t');updateTherapistHeader();renderNotifPanel('t');}
 function myPatients(){
   if(!currentTherapist) return [];
-  const indiv = patients.filter(p=>p.therapistId===currentTherapist.id&&p.status!=='finalizado');
+  const indiv = patients.filter(p=>p.therapistId===currentTherapist.id);
   const casal = currentCasais
     .filter(c=>c.therapistId===currentTherapist.id)
     .map(c=>({
@@ -2187,12 +2187,14 @@ function renderTherapistCards(){
   const c=document.getElementById('therapist-cards-container');if(!c)return;
   const mine=myPatients();
   if(!mine.length){c.innerHTML='<div class="empty-state"><div class="es-icon">◎</div><p>Nenhum paciente atribuído ainda.</p></div>';return;}
-  c.innerHTML=mine.map(p=>{
+  // Ativos primeiro, finalizados por último
+  const sorted=[...mine.filter(p=>p.status!=='finalizado'),...mine.filter(p=>p.status==='finalizado')];
+  c.innerHTML=sorted.map(p=>{
     const pct=Math.round((p.sessoes/6)*100),ic={espera:'var(--yellow)',andamento:'var(--blue)',pausado:'var(--red)',finalizado:'var(--teal)'}[p.status]||'var(--yellow)',bc={espera:'ay',andamento:'ab',pausado:'ar',finalizado:'ag'};
     const btns=['espera','andamento','pausado','finalizado'].map(s=>'<button class="sbt'+(p.status===s?' '+bc[s]:'')+'" title="'+(s==='espera'?'⏳ Espera':s==='andamento'?'▶️ Em andamento':s==='pausado'?'⏸️ Pausado':'Finalizado')+'" onclick="setStatus(\''+p.id+'\',\''+s+'\')">'+(s==='espera'?'⏳':s==='andamento'?'▶️':s==='pausado'?'⏸️':'✅')+'</button>').join('');
     const next=appointments.filter(a=>a.patientId===p.id).sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time))[0];
     const dots=[1,2,3,4,5,6].map(i=>'<div class="sess-dot'+(i<=p.sessoes?' done':'')+(i===p.sessoes&&p.sessoes<6?' current':'')+'"></div>').join('');
-    return'<div class="patient-card"><div class="pch"><div class="p-avatar">'+initials(p.nome)+'</div><div class="p-info"><h4>'+p.nome+'</h4><p>'+p.tipo+' · '+((p.sintomas||[])[0]||p.queixa.slice(0,22))+'</p></div><div class="p-ind" style="background:'+ic+'"></div></div>'
+    return'<div class="patient-card" style="'+(p.status==="finalizado"?'opacity:.72;border-color:var(--teal)':'')+'"><div class="pch"><div class="p-avatar">'+initials(p.nome)+'</div><div class="p-info"><h4>'+p.nome+'</h4><p>'+p.tipo+' · '+((p.sintomas||[])[0]||p.queixa.slice(0,22))+'</p></div><div class="p-ind" style="background:'+ic+'"></div></div>'
     +'<div class="pcb"><div class="sess-row"><span class="sess-lbl">Sessões</span><span class="sess-cnt">'+p.sessoes+'/6</span></div>'
     +'<div class="pbar"><div class="pfill" style="width:'+pct+'%'+(p.sessoes>=6?';background:var(--teal)':'')+'"></div></div>'
     +'<div class="sess-controls"><button class="sess-btn" onclick="changeSessoes(\''+p.id+'\',-1)" '+(p.sessoes<=0?'disabled':'')+'>−</button><div class="sess-dots">'+dots+'</div><button class="sess-btn" onclick="changeSessoes(\''+p.id+'\',1)" '+(p.sessoes>=6?'disabled':'')+'>+</button></div>'
