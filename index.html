@@ -2364,6 +2364,23 @@ async function saveDev(n,pid){const p=patients.find(x=>x.id===pid);if(!p)return;
 // ══ RELATÓRIO ══
 function renderRelatorioList(scope){const list=scope==='t'&&currentTherapist?patients.filter(p=>p.therapistId===currentTherapist.id):patients;const el=document.getElementById('rel-list-'+scope);if(!el)return;if(!list.length){el.innerHTML='<div style="padding:18px;text-align:center;color:var(--text3);font-size:.8rem">Nenhum paciente.</div>';return;}el.innerHTML=list.map(p=>{const sc={espera:'var(--yellow)',andamento:'var(--blue)',pausado:'var(--red)',finalizado:'var(--teal)'}[p.status]||'var(--yellow)';return'<div class="rel-patient-item" id="rpi-'+scope+'-'+p.id+'" onclick="renderRelatorio(\''+scope+'\',\''+p.id+'\')"><div class="rp-avatar">'+initials(p.nome)+'</div><div class="rp-info"><h5>'+p.nome+'</h5><p>'+p.tipo+' · <span style="color:'+sc+';font-weight:600">'+({espera:'⏳ Espera',andamento:'▶️ Em andamento',pausado:'⏸️ Pausado',finalizado:'✅ Finalizado'}[p.status]||'Espera')+'</span></p></div><div class="rp-sessoes">'+p.sessoes+'/6</div></div>';}).join('');}
 
+
+async function setStatusT(pid, newStatus){
+  const p = patients.find(x=>x.id===pid);
+  if(!p) return;
+  const old = p.status;
+  p.status = newStatus;
+  const ok = await dbUpdate('fichas_triagem', pid, {status: newStatus});
+  if(ok){
+    updateMetrics();
+    renderRelatorio('t', pid);
+    renderRelPatientList('t');
+    showToast('Status atualizado: '+({espera:'⏳ Espera',andamento:'▶️ Em andamento',pausado:'⏸️ Pausado',finalizado:'✅ Finalizado'}[newStatus]||newStatus));
+  } else {
+    p.status = old;
+  }
+}
+
 function openRelDevEdit(pid,n){
   document.getElementById('rel-dev-view-'+pid+'-'+n).style.display='none';
   document.getElementById('rel-dev-edit-'+pid+'-'+n).style.display='block';
@@ -2422,6 +2439,7 @@ function renderRelatorio(scope,pid){
   content.innerHTML='<div class="rel-card"><div class="rel-card-header"><div style="display:flex;align-items:center;gap:10px"><div style="width:36px;height:36px;border-radius:9px;background:var(--grad);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:.8rem">'+initials(p.nome)+'</div><div><h4 style="font-size:.96rem">'+p.nome+'</h4><p style="font-size:.7rem;color:var(--text2);margin-top:1px">'+p.tipo+' · '+p.data+(t?' · '+t.nome:'')+'</p></div></div><button class="print-btn" onclick="window.print()">Imprimir</button></div>'
   +'<div class="rel-card-body"><div class="rel-hero"><div class="rel-stat"><div class="rel-stat-val">'+p.sessoes+'</div><div class="rel-stat-lbl">Feitas</div></div><div class="rel-stat"><div class="rel-stat-val">'+(6-p.sessoes)+'</div><div class="rel-stat-lbl">Restam</div></div><div class="rel-stat"><div class="rel-stat-val">'+pa.length+'</div><div class="rel-stat-lbl">Agend.</div></div><div class="rel-stat"><div class="rel-stat-val" style="font-size:.9rem;color:'+sc+'">'+sl+'</div><div class="rel-stat-lbl">Status</div></div></div>'
   +'<div class="rel-progress-bar"><div class="rel-progress-fill" style="width:'+pct+'%'+(p.sessoes>=6?';background:var(--teal)':'')+'"></div></div><div class="rel-progress-label"><span>Progresso</span><span><strong style="color:var(--text)">'+pct+'%</strong></span></div></div></div>'
+  +(scope==='t'?'<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)"><div style="font-size:.72rem;color:var(--text3);margin-bottom:6px;font-weight:600">Alterar status:</div><div style="display:flex;gap:6px;flex-wrap:wrap">'+['espera','andamento','pausado','finalizado'].map(function(s){var lbl={espera:'⏳ Espera',andamento:'▶️ Em andamento',pausado:'⏸️ Pausado',finalizado:'✅ Finalizado'}[s];var active=p.status===s;var c={espera:'var(--yellow)',andamento:'var(--blue)',pausado:'var(--red)',finalizado:'var(--teal)'}[s];return '<button data-pid="'+p.id+'" data-s="'+s+'" onclick="setStatusT(this.dataset.pid,this.dataset.s)" style="padding:5px 12px;border-radius:50px;font-size:.74rem;cursor:pointer;border:1px solid '+(active?c:'var(--border2)')+';background:'+(active?c+'22':'var(--bg3)')+';color:'+(active?c:'var(--text3)')+';font-weight:'+(active?'600':'400')+'">'+lbl+'</button>';}).join('')+'</div></div></div>':'</div></div>')
   +'<div class="rel-card"><div class="rel-card-header"><h4>Dados da Triagem</h4></div><div class="rel-card-body"><div class="rel-info-grid"><div class="rel-info-row"><span class="rel-info-key">Queixa</span><span class="rel-info-val">'+p.queixa+'</span></div><div class="rel-info-row"><span class="rel-info-key">Sintomas</span><span class="rel-info-val">'+((p.sintomas||[]).join(', ')||'—')+'</span></div><div class="rel-info-row"><span class="rel-info-key">Contato</span><span class="rel-info-val">'+p.tel+'</span></div><div class="rel-info-row"><span class="rel-info-key">Expectativa</span><span class="rel-info-val">'+(p.expectativa||'—')+'</span></div></div></div></div>'
   +'<div class="rel-card"><div class="rel-card-header"><h4>Histórico de Sessões</h4><span style="font-size:.72rem;color:var(--text2)">'+p.sessoes+'/6</span></div><div class="rel-card-body"><div class="rel-timeline">'+tlHTML+'</div></div></div>';
 }
