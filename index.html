@@ -1285,17 +1285,13 @@ function openTherapistLogin(){document.getElementById('modal-t-login').classList
 async function confirmarLoginT(){
   const user=document.getElementById('t-login-user').value.trim().toLowerCase(),pass=document.getElementById('t-login-pass').value;
   const t=therapists.find(x=>x.username.toLowerCase()===user&&x.password===pass);
-  if(t&&t.bloqueado){
-    const err=document.getElementById('t-login-erro');
-    err.textContent='⛔ Acesso bloqueado. Entre em contato com o administrador.';
-    err.style.display='block';
-    return;
-  }
   if(t){
+    if(t.bloqueado) showBlockedBanner();
     currentTherapist=t;
     saveSession({type:'therapist',id:t.id,username:t.username,password:t.password});
     closeOverlay('modal-t-login');
     updateTherapistHeader();
+    if(t.bloqueado)showBlockedBanner();
     goToScreen('screen-therapist');
     requestNotifPermission().then(granted=>{
       if(granted)startNotifPolling();
@@ -1304,7 +1300,7 @@ async function confirmarLoginT(){
   }
   else{document.getElementById('t-login-erro').style.display='block';document.getElementById('t-login-pass').value='';}
 }
-function logoutTherapist(){currentTherapist=null;try{clearSavedSession();}catch(e){}try{stopNotifPolling();}catch(e){}goHome();}
+function logoutTherapist(){hideBlockedBanner();currentTherapist=null;try{clearSavedSession();}catch(e){}try{stopNotifPolling();}catch(e){}goHome();}
 
 // ══ NOTIFICAÇÕES DE DISPOSITIVO ══
 let _notifPollingInterval=null;
@@ -1615,6 +1611,24 @@ window.addEventListener('online', () => {
   showToast('✅ Conexão restabelecida!');
   loadData();
 });
+
+
+function showBlockedBanner(){
+  let banner=document.getElementById('t-blocked-banner');
+  if(!banner){
+    banner=document.createElement('div');
+    banner.id='t-blocked-banner';
+    banner.style.cssText='position:fixed;top:0;left:0;right:0;z-index:9998;background:#7f1d1d;color:#fecaca;padding:10px 16px;font-size:.82rem;font-weight:600;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,.3)';
+    banner.innerHTML='<span>⛔ Sua conta está bloqueada pelo administrador. Você pode visualizar seu perfil, mas suas ações estão limitadas. Entre em contato para mais informações.</span>';
+    document.body.prepend(banner);
+  }
+  banner.style.display='flex';
+}
+
+function hideBlockedBanner(){
+  const banner=document.getElementById('t-blocked-banner');
+  if(banner) banner.style.display='none';
+}
 
 function updateTherapistHeader(){
   if(!currentTherapist)return;
