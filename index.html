@@ -471,6 +471,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
           <span class="filter-chip" id="chip-andamento" onclick="setStatusFilter('andamento')">▶️ Em andamento</span>
           <span class="filter-chip" id="chip-pausado" onclick="setStatusFilter('pausado')">⏸️ Pausado</span>
           <span class="filter-chip" id="chip-finalizado" onclick="setStatusFilter('finalizado')">✅ Finalizado</span>
+          <span class="filter-chip" id="chip-inativo" onclick="setStatusFilter('inativo')">💤 Inativo</span>
         </div>
         <div class="search-filters" style="margin-top:6px">
           <span class="filter-label">Tipo:</span>
@@ -1745,7 +1746,7 @@ function applyTherapistFilters(){
   console.log('[DEBUG] therapists.length=', therapists.length, '| therapists[0]?.nome=', therapists[0]?.nome);
   const q=(document.getElementById('t-search-q')?.value||'').toLowerCase().trim(),mod=document.getElementById('t-filter-modalidade')?.value||'',esp=document.getElementById('t-filter-esp')?.value||'',sort=document.getElementById('t-sort')?.value||'recente';
   let res=therapists.filter(t=>{if(tNivelFilter2!=='all'&&String(t.nivel)!==tNivelFilter2)return false;if(mod&&t.modalidade!==mod)return false;if(esp&&!(t.especialidades||[]).includes(esp)&&t.esp!==esp)return false;if(q){const f=[t.nome,t.crp,t.esp,(t.especialidades||[]).join(' '),t.bio,t.modalidade].join(' ').toLowerCase();if(!f.includes(q))return false;}return true;});
-  res=[...res].sort((a,b)=>{if(sort==='az')return a.nome.localeCompare(b.nome,'pt-BR');if(sort==='za')return b.nome.localeCompare(a.nome,'pt-BR');if(sort==='nivel-asc')return Number(a.nivel)-Number(b.nivel);if(sort==='nivel-desc')return Number(b.nivel)-Number(a.nivel);if(sort==='pacientes')return patients.filter(p=>p.therapistId===b.id&&p.status!=='finalizado').length-patients.filter(p=>p.therapistId===a.id&&p.status!=='finalizado').length;return new Date(b.created_at)-new Date(a.created_at);});
+  res=[...res].sort((a,b)=>{if(sort==='az')return a.nome.localeCompare(b.nome,'pt-BR');if(sort==='za')return b.nome.localeCompare(a.nome,'pt-BR');if(sort==='nivel-asc')return Number(a.nivel)-Number(b.nivel);if(sort==='nivel-desc')return Number(b.nivel)-Number(a.nivel);if(sort==='pacientes')return patients.filter(p=>p.therapistId===b.id&&p.status!=='finalizado'&&p.status!=='inativo').length-patients.filter(p=>p.therapistId===a.id&&p.status!=='finalizado'&&p.status!=='inativo').length;return new Date(b.created_at)-new Date(a.created_at);});
   const cnt=document.getElementById('t-results-count');if(cnt)cnt.textContent=res.length===therapists.length?'Mostrando todos ('+therapists.length+')':res.length+' de '+therapists.length;
   renderTherapistGrid(res);
 }
@@ -1767,7 +1768,7 @@ function renderTherapistGrid(list){
   const grid=document.getElementById('therapist-admin-grid');if(!grid)return;
   if(!list.length){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1"><div class="es-icon">◎</div><p>Nenhum terapeuta encontrado.</p></div>';return;}
   grid.innerHTML=list.map(t=>{
-    const qtd=patients.filter(p=>p.therapistId===t.id&&p.status!=='finalizado').length;
+    const qtd=patients.filter(p=>p.therapistId===t.id&&p.status!=='finalizado'&&p.status!=='inativo').length;
     const bio=t.bio?'<div style="font-size:.76rem;color:var(--text2);line-height:1.5;padding:10px 12px;background:var(--bg2);border-radius:8px;margin-bottom:10px;border:1px solid var(--border)">'+t.bio+'</div>':'';
     const esps=(t.especialidades&&t.especialidades.length)?'<div style="display:flex;flex-wrap:wrap;gap:5px;margin:10px 0">'+t.especialidades.map(e=>'<span style="font-size:.65rem;padding:2px 8px;border-radius:50px;background:rgba(45,212,170,.08);border:1px solid rgba(45,212,170,.2);color:var(--teal)">'+e+'</span>').join('')+'</div>':'';
     const mod=t.modalidade?'<div class="cred-row"><span class="cred-label">Modalidade</span><span class="cred-val">'+t.modalidade+'</span></div>':'';
@@ -1860,7 +1861,7 @@ function renderAssignList(type,q){
   list.innerHTML=filtered.slice(0,20).map(x=>{
     const atribuido=type==='patient'&&!!x.therapistId&&x.status!=='finalizado';
     const tipoPill=x._isCasal?'<span style="font-size:.6rem;background:rgba(45,212,170,.1);color:var(--teal);border-radius:50px;padding:1px 7px;border:1px solid rgba(45,212,170,.2);margin-right:4px">Casal</span>':'';
-    const ativosDoT=type==='therapist'?patients.filter(p=>p.therapistId===x.id&&p.status!=='finalizado').length:0;const sub=type==='patient'?(x.therapistId?(therapists.find(t=>t.id===x.therapistId)?.nome||'Atribuído'):'Sem terapeuta'):(x.esp||'Terapeuta');
+    const ativosDoT=type==='therapist'?patients.filter(p=>p.therapistId===x.id&&p.status!=='finalizado'&&p.status!=='inativo').length:0;const sub=type==='patient'?(x.therapistId?(therapists.find(t=>t.id===x.therapistId)?.nome||'Atribuído'):'Sem terapeuta'):(x.esp||'Terapeuta');
     const bloqueado=type==='therapist'&&!!x.bloqueado;
     const badge=atribuido?'<span style="font-size:.6rem;background:rgba(90,106,138,.15);color:var(--text3);border-radius:50px;padding:1px 7px;border:1px solid var(--border2)">Atribuído</span>'      :bloqueado?'<span style="font-size:.6rem;background:rgba(220,38,38,.12);color:var(--red);border-radius:50px;padding:1px 7px;border:1px solid rgba(220,38,38,.25)">🔒 Bloqueado</span>':'';
     const safeNome=x.nome.replace(/'/g,"\\'");
@@ -1924,16 +1925,16 @@ function renderDashboardPending(){
   const list = document.getElementById('dashboard-pending-list');
   const empty = document.getElementById('dashboard-pending-empty');
   if(!list) return;
-  const sl={espera:'⏳',andamento:'▶️',pausado:'⏸️',finalizado:'✅'};
-  const sc={espera:'var(--yellow)',andamento:'var(--blue)',pausado:'var(--red)',finalizado:'var(--teal)'};
+  const sl={espera:'⏳',andamento:'▶️',pausado:'⏸️',finalizado:'✅',inativo:'💤'};
+  const sc={espera:'var(--yellow)',andamento:'var(--blue)',pausado:'var(--red)',finalizado:'var(--teal)',inativo:'#94a3b8'};
   // Respeita filtro de status ativo; sem filtro → prioriza sem terapeuta
   let res = [...patients];
   if(activeStatusFilter!=='all') res=res.filter(p=>p.status===activeStatusFilter);
   if(activeStatusFilter==='all'){
     // sem filtro: mostra os 5 sem terapeuta (espera primeiro), depois os demais até completar 5
-    const semT = res.filter(p=>!p.therapistId&&p.status!=='finalizado')
-      .sort((a,b)=>['espera','andamento','pausado','finalizado'].indexOf(a.status)-['espera','andamento','pausado','finalizado'].indexOf(b.status));
-    const comT = res.filter(p=>!!p.therapistId&&p.status!=='finalizado');
+    const semT = res.filter(p=>!p.therapistId&&p.status!=='finalizado'&&p.status!=='inativo')
+      .sort((a,b)=>['espera','andamento','pausado','finalizado','inativo'].indexOf(a.status)-['espera','andamento','pausado','finalizado','inativo'].indexOf(b.status));
+    const comT = res.filter(p=>!!p.therapistId&&p.status!=='finalizado'&&p.status!=='inativo');
     res = [...semT,...comT].slice(0,5);
   } else {
     res = res.slice(0,5);
@@ -1967,6 +1968,7 @@ function updateMetrics(){
   document.getElementById('m-andamento').textContent=patients.filter(p=>p.status==='andamento').length;
   document.getElementById('m-final').textContent=patients.filter(p=>p.status==='finalizado').length;
   document.getElementById('m-pausado').textContent=patients.filter(p=>p.status==='pausado').length;
+  const mInativo=document.getElementById('m-inativo');if(mInativo)mInativo.textContent=patients.filter(p=>p.status==='inativo').length;
   document.getElementById('m-terapeutas').textContent=therapists.length;
   // Blocked therapists
   const bloqueados=therapists.filter(t=>t.bloqueado);
@@ -1991,8 +1993,8 @@ function updateMetrics(){
     }
   }
 }
-function statusBadge(s){return{espera:'<span class="sb sb-yellow"><span class="sd sd-y"></span>⏳ Espera</span>',andamento:'<span class="sb sb-blue"><span class="sd sd-b"></span>▶️ Em andamento</span>',pausado:'<span class="sb sb-red"><span class="sd sd-r"></span>⏸️ Pausado</span>',finalizado:'<span class="sb sb-green"><span class="sd sd-g"></span>✅ Finalizado</span>'}[s]||'<span class="sb sb-yellow"><span class="sd sd-y"></span>⏳ Espera</span>';}
-function setStatusFilter(s){activeStatusFilter=s;['all','espera','andamento','pausado','finalizado'].forEach(x=>{const c=document.getElementById('chip-'+x);if(!c)return;c.className='filter-chip';if(x===s)c.classList.add('active-'+x);});applyFilters();;renderDashboardPending();}
+function statusBadge(s){return{espera:'<span class="sb sb-yellow"><span class="sd sd-y"></span>⏳ Espera</span>',andamento:'<span class="sb sb-blue"><span class="sd sd-b"></span>▶️ Em andamento</span>',pausado:'<span class="sb sb-red"><span class="sd sd-r"></span>⏸️ Pausado</span>',finalizado:'<span class="sb sb-green"><span class="sd sd-g"></span>✅ Finalizado</span>',inativo:'<span class="sb" style="background:rgba(148,163,184,.12);color:#94a3b8;border:1px solid #94a3b8"><span class="sd" style="background:#94a3b8"></span>💤 Inativo</span>'}[s]||'<span class="sb sb-yellow"><span class="sd sd-y"></span>⏳ Espera</span>';}
+function setStatusFilter(s){activeStatusFilter=s;['all','espera','andamento','pausado','finalizado','inativo'].forEach(x=>{const c=document.getElementById('chip-'+x);if(!c)return;c.className='filter-chip';if(x===s)c.classList.add('active-'+x);});applyFilters();;renderDashboardPending();}
 function applyFilters(){
   const q=(document.getElementById('search-q')?.value||'').trim();
   const tipo=document.getElementById('filter-tipo')?.value||'';
@@ -2059,7 +2061,7 @@ function renderAdminTable(list,q){
   if(!list.length){tb.innerHTML='<tr class="empty-row"><td colspan="5">Nenhum paciente encontrado.</td></tr>';return;}
   const sc={espera:'var(--yellow)',andamento:'var(--blue)',pausado:'var(--red)',finalizado:'var(--teal)'};
   const sl={espera:'⏳',andamento:'▶️',pausado:'⏸️',finalizado:'✅'};
-  const bc={espera:'ay',andamento:'ab',pausado:'ar',finalizado:'ag'};
+  const bc={espera:'ay',andamento:'ab',pausado:'ar',finalizado:'ag',inativo:'ai'};
   tb.innerHTML=list.map(p=>{
     const t=therapists.find(x=>x.id===p.therapistId);
     const bar='<div style="display:flex;align-items:center;gap:5px"><span style="font-size:.76rem;font-weight:600;color:var(--text)">'+p.sessoes+'/6</span><div style="flex:1;height:3px;background:var(--bg4);border-radius:50px;min-width:32px"><div style="width:'+Math.round(p.sessoes/6*100)+'%;height:100%;border-radius:50px;background:var(--grad)"></div></div></div>';
@@ -2202,13 +2204,13 @@ function renderTherapistCards(){
   const mine=myPatients();
   if(!mine.length){c.innerHTML='<div class="empty-state"><div class="es-icon">◎</div><p>Nenhum paciente atribuído ainda.</p></div>';return;}
   // Ativos primeiro, finalizados por último
-  const sorted=[...mine.filter(p=>p.status!=='finalizado'),...mine.filter(p=>p.status==='finalizado')];
+  const sorted=[...mine.filter(p=>p.status!=='finalizado'&&p.status!=='inativo'&&p.status!=='inativo'),...mine.filter(p=>p.status==='finalizado'),...mine.filter(p=>p.status==='inativo')];
   c.innerHTML=sorted.map(p=>{
-    const pct=Math.round((p.sessoes/6)*100),ic={espera:'var(--yellow)',andamento:'var(--blue)',pausado:'var(--red)',finalizado:'var(--teal)'}[p.status]||'var(--yellow)',bc={espera:'ay',andamento:'ab',pausado:'ar',finalizado:'ag'};
-    const btns=['espera','andamento','pausado','finalizado'].map(s=>'<button class="sbt'+(p.status===s?' '+bc[s]:'')+'" title="'+(s==='espera'?'⏳ Espera':s==='andamento'?'▶️ Em andamento':s==='pausado'?'⏸️ Pausado':'Finalizado')+'" onclick="setStatus(\''+p.id+'\',\''+s+'\')">'+(s==='espera'?'⏳':s==='andamento'?'▶️':s==='pausado'?'⏸️':'✅')+'</button>').join('');
+    const pct=Math.round((p.sessoes/6)*100),ic={espera:'var(--yellow)',andamento:'var(--blue)',pausado:'var(--red)',finalizado:'var(--teal)',inativo:'#94a3b8'}[p.status]||'var(--yellow)',bc={espera:'ay',andamento:'ab',pausado:'ar',finalizado:'ag'};
+    const btns=['espera','andamento','pausado','finalizado','inativo'].map(s=>'<button class="sbt'+(p.status===s?' '+bc[s]:'')+'" title="'+(s==='espera'?'⏳ Espera':s==='andamento'?'▶️ Em andamento':s==='pausado'?'⏸️ Pausado':'Finalizado')+'" onclick="setStatus(\''+p.id+'\',\''+s+'\')">'+(s==='espera'?'⏳':s==='andamento'?'▶️':s==='pausado'?'⏸️':s==='finalizado'?'✅':'💤')+'</button>').join('');
     const next=appointments.filter(a=>a.patientId===p.id).sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time))[0];
     const dots=[1,2,3,4,5,6].map(i=>'<div class="sess-dot'+(i<=p.sessoes?' done':'')+(i===p.sessoes&&p.sessoes<6?' current':'')+'"></div>').join('');
-    return'<div class="patient-card" style="'+(p.status==="finalizado"?'opacity:.72;border-color:var(--teal)':'')+'"><div class="pch"><div class="p-avatar">'+initials(p.nome)+'</div><div class="p-info"><h4>'+p.nome+'</h4><p>'+p.tipo+' · '+((p.sintomas||[])[0]||p.queixa.slice(0,22))+'</p></div><div class="p-ind" style="background:'+ic+'"></div></div>'
+    return'<div class="patient-card" style="'+(p.status==="finalizado"?'opacity:.72;border-color:var(--teal)':p.status==="inativo"?'opacity:.45;border-color:#94a3b8;filter:grayscale(.5)':'')+'"><div class="pch"><div class="p-avatar">'+initials(p.nome)+'</div><div class="p-info"><h4>'+p.nome+'</h4><p>'+p.tipo+' · '+((p.sintomas||[])[0]||p.queixa.slice(0,22))+'</p></div><div class="p-ind" style="background:'+ic+'"></div></div>'
     +'<div class="pcb"><div class="sess-row"><span class="sess-lbl">Sessões</span><span class="sess-cnt">'+p.sessoes+'/6</span></div>'
     +'<div class="pbar"><div class="pfill" style="width:'+pct+'%'+(p.sessoes>=6?';background:var(--teal)':'')+'"></div></div>'
     +'<div class="sess-controls"><button class="sess-btn" onclick="changeSessoes(\''+p.id+'\',-1)" '+(p.sessoes<=0?'disabled':'')+'>−</button><div class="sess-dots">'+dots+'</div><button class="sess-btn" onclick="changeSessoes(\''+p.id+'\',1)" '+(p.sessoes>=6?'disabled':'')+'>+</button></div>'
@@ -2219,7 +2221,7 @@ function renderTherapistCards(){
     +'</div><div class="pcf">'+btns+'<button class="link-btn" style="margin-left:auto;font-size:.72rem;color:var(--blue)" onclick="openFicha(\''+p.id+'\')">📋 Ver ficha completa</button></div></div>';
   }).join('');
 }
-async function changeSessoes(id,delta){const p=patients.find(x=>x.id===id);if(!p)return;const n=Math.min(6,Math.max(0,p.sessoes+delta));if(n===p.sessoes)return;p.sessoes=n;if(n>=6&&p.status!=='finalizado')p.status='finalizado';else if(n>=1&&p.status==='espera')p.status='andamento';else if(n===0&&p.status==='andamento')p.status='espera';const ok=await dbUpdate('fichas_triagem',id,{sessoes:n,status:p.status});if(ok){renderTherapistCards();updateMetrics();showToast(delta>0?'✓ Sessão '+n+'/6 registrada! Status: '+(p.status==='andamento'?'▶️ Em andamento':p.status):'Sessão removida ('+n+'/6)');}}
+async function changeSessoes(id,delta){const p=patients.find(x=>x.id===id);if(!p)return;const n=Math.min(6,Math.max(0,p.sessoes+delta));if(n===p.sessoes)return;p.sessoes=n;if(n>=6&&p.status!=='finalizado'&&p.status!=='inativo')p.status='finalizado';else if(n>=1&&p.status==='espera')p.status='andamento';else if(n===0&&p.status==='andamento')p.status='espera';const ok=await dbUpdate('fichas_triagem',id,{sessoes:n,status:p.status});if(ok){renderTherapistCards();updateMetrics();showToast(delta>0?'✓ Sessão '+n+'/6 registrada! Status: '+(p.status==='andamento'?'▶️ Em andamento':p.status):'Sessão removida ('+n+'/6)');}}
 async function setStatus(id,s){const p=patients.find(x=>x.id===id);if(!p)return;p.status=s;const ok=await dbUpdate('fichas_triagem',id,{status:s});if(ok){renderTherapistCards();updateMetrics();showToast('✓ Status atualizado!');}}
 async function setStatusAdmin(id,s){const p=patients.find(x=>x.id===id);if(!p)return;p.status=s;const ok=await dbUpdate('fichas_triagem',id,{status:s});if(ok){applyFilters();updateMetrics();showToast('✓ Status atualizado!');}}
 async function updateDev(id,v,n){const p=patients.find(x=>x.id===id);if(!p)return;p.devolutiva=v;if(!p.devolutivas)p.devolutivas={};if(n)p.devolutivas[String(n)]=v;const ok=await dbUpdate('fichas_triagem',id,{devolutiva:v,devolutivas:p.devolutivas});if(ok)showToast('✓ Devolutiva salva!');}
@@ -2293,7 +2295,7 @@ async function addAppointment(){
   if(!pid){showToast('Selecione um paciente!');return;}if(!ds){showToast('Selecione um dia!');return;}
   const res=await dbInsert('agendamentos',{id:uid(),patientId:pid,date:ds,time,mode,obs});
   if(!res)return;appointments.push(res);
-  const p=patients.find(x=>x.id===pid);if(p&&p.sessoes<6){p.sessoes++;if(p.sessoes>=1&&p.status==='espera')p.status='andamento';if(p.sessoes>=6&&p.status!=='finalizado')p.status='finalizado';await dbUpdate('fichas_triagem',p.id,{sessoes:p.sessoes,status:p.status});}
+  const p=patients.find(x=>x.id===pid);if(p&&p.sessoes<6){p.sessoes++;if(p.sessoes>=1&&p.status==='espera')p.status='andamento';if(p.sessoes>=6&&p.status!=='finalizado'&&p.status!=='inativo')p.status='finalizado';await dbUpdate('fichas_triagem',p.id,{sessoes:p.sessoes,status:p.status});}
   document.getElementById('appt-obs').value='';updateMetrics();buildCal('t');showDayAgenda('t',ds);buildUpcoming('t');showToast('Sessão agendada!');
 }
 async function deleteAppointment(aid,ds){await dbDelete('agendamentos',aid);appointments=appointments.filter(a=>a.id!==aid);updateMetrics();buildCal('t');showDayAgenda('t',ds);buildUpcoming('t');showToast('Removido.');}
@@ -2378,7 +2380,7 @@ function updateDevCount(n){const t=document.getElementById('dev-text-'+n),c=docu
 async function saveDev(n,pid){const p=patients.find(x=>x.id===pid);if(!p)return;if(!p.devolutivas)p.devolutivas={};const txt=document.getElementById('dev-text-'+n);if(!txt)return;p.devolutivas[n]=txt.value;if(n===p.sessoes)p.devolutiva=txt.value;await dbUpdate('fichas_triagem',pid,{devolutiva:p.devolutiva,devolutivas:p.devolutivas});renderDevHistoryList(p);setTimeout(()=>toggleDev(n),50);showToast('Devolutiva salva!');}
 
 // ══ RELATÓRIO ══
-function renderRelatorioList(scope){const list=scope==='t'&&currentTherapist?patients.filter(p=>p.therapistId===currentTherapist.id):patients;const el=document.getElementById('rel-list-'+scope);if(!el)return;if(!list.length){el.innerHTML='<div style="padding:18px;text-align:center;color:var(--text3);font-size:.8rem">Nenhum paciente.</div>';return;}el.innerHTML=list.map(p=>{const sc={espera:'var(--yellow)',andamento:'var(--blue)',pausado:'var(--red)',finalizado:'var(--teal)'}[p.status]||'var(--yellow)';return'<div class="rel-patient-item" id="rpi-'+scope+'-'+p.id+'" onclick="renderRelatorio(\''+scope+'\',\''+p.id+'\')"><div class="rp-avatar">'+initials(p.nome)+'</div><div class="rp-info"><h5>'+p.nome+'</h5><p>'+p.tipo+' · <span style="color:'+sc+';font-weight:600">'+({espera:'⏳ Espera',andamento:'▶️ Em andamento',pausado:'⏸️ Pausado',finalizado:'✅ Finalizado'}[p.status]||'Espera')+'</span></p></div><div class="rp-sessoes">'+p.sessoes+'/6</div></div>';}).join('');}
+function renderRelatorioList(scope){const list=scope==='t'&&currentTherapist?patients.filter(p=>p.therapistId===currentTherapist.id):patients;const el=document.getElementById('rel-list-'+scope);if(!el)return;if(!list.length){el.innerHTML='<div style="padding:18px;text-align:center;color:var(--text3);font-size:.8rem">Nenhum paciente.</div>';return;}el.innerHTML=list.map(p=>{const sc={espera:'var(--yellow)',andamento:'var(--blue)',pausado:'var(--red)',finalizado:'var(--teal)',inativo:'#94a3b8'}[p.status]||'var(--yellow)';return'<div class="rel-patient-item" id="rpi-'+scope+'-'+p.id+'" onclick="renderRelatorio(\''+scope+'\',\''+p.id+'\')"><div class="rp-avatar">'+initials(p.nome)+'</div><div class="rp-info"><h5>'+p.nome+'</h5><p>'+p.tipo+' · <span style="color:'+sc+';font-weight:600">'+({espera:'⏳ Espera',andamento:'▶️ Em andamento',pausado:'⏸️ Pausado',finalizado:'✅ Finalizado',inativo:'💤 Inativo'}[p.status]||'Espera')+'</span></p></div><div class="rp-sessoes">'+p.sessoes+'/6</div></div>';}).join('');}
 
 
 async function setStatusT(pid, newStatus){
@@ -2391,7 +2393,7 @@ async function setStatusT(pid, newStatus){
     updateMetrics();
     renderRelatorio('t', pid);
     renderRelPatientList('t');
-    showToast('Status atualizado: '+({espera:'⏳ Espera',andamento:'▶️ Em andamento',pausado:'⏸️ Pausado',finalizado:'✅ Finalizado'}[newStatus]||newStatus));
+    showToast('Status atualizado: '+({espera:'⏳ Espera',andamento:'▶️ Em andamento',pausado:'⏸️ Pausado',finalizado:'✅ Finalizado',inativo:'💤 Inativo'}[newStatus]||newStatus));
   } else {
     p.status = old;
   }
@@ -2428,7 +2430,7 @@ async function saveRelDev(pid,n){
 function renderRelatorio(scope,pid){
   document.querySelectorAll('[id^="rpi-'+scope+'-"]').forEach(el=>el.classList.remove('active'));const item=document.getElementById('rpi-'+scope+'-'+pid);if(item)item.classList.add('active');
   const p=patients.find(x=>x.id===pid);if(!p)return;
-  const t=therapists.find(x=>x.id===p.therapistId),pa=appointments.filter(a=>a.patientId===pid).sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time)),pct=Math.round((p.sessoes/6)*100),sl={espera:'⏳ Espera',andamento:'▶️ Em Andamento',pausado:'⏸️ Pausado',finalizado:'✅ Finalizado'}[p.status]||p.status,sc={espera:'var(--yellow)',andamento:'var(--blue)',pausado:'var(--red)',finalizado:'var(--teal)'}[p.status]||'var(--yellow)';
+  const t=therapists.find(x=>x.id===p.therapistId),pa=appointments.filter(a=>a.patientId===pid).sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time)),pct=Math.round((p.sessoes/6)*100),sl={espera:'⏳ Espera',andamento:'▶️ Em Andamento',pausado:'⏸️ Pausado',finalizado:'✅ Finalizado',inativo:'💤 Inativo'}[p.status]||p.status,sc={espera:'var(--yellow)',andamento:'var(--blue)',pausado:'var(--red)',finalizado:'var(--teal)'}[p.status]||'var(--yellow)';
   const tlHTML=p.sessoes?Array.from({length:p.sessoes},(_,i)=>{
     const n=i+1,apt=pa[n-1],dv=(p.devolutivas&&p.devolutivas[n])||(n===p.sessoes?p.devolutiva:'');
     const editBtn=scope==='t'
@@ -2559,8 +2561,8 @@ function buildNotifications(scope){
     if(p.status==='pausado')notifs.push({icon:'!',cls:'ni-red',title:'Pausado: '+p.nome,desc:'Processo pausado.'});
     const na=appointments.filter(a=>a.patientId===p.id).sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time))[0];
     if(na){const diff=Math.round((new Date(na.date+'T00:00:00')-now)/86400000);if(diff>=0&&diff<=2)notifs.push({icon:'◻',cls:'ni-blue',title:'Sessão '+(diff===0?'hoje':diff===1?'amanhã':'em 2 dias')+': '+p.nome,desc:'Às '+na.time+' — '+na.mode});}
-    if(p.sessoes===5&&p.status!=='finalizado')notifs.push({icon:'→',cls:'ni-yellow',title:'Última sessão: '+p.nome,desc:'Avalie renovação.'});
-    if(p.sessoes>=6&&p.status!=='finalizado')notifs.push({icon:'✓',cls:'ni-green',title:'Concluído: '+p.nome,desc:'Marque como finalizado.'});
+    if(p.sessoes===5&&p.status!=='finalizado'&&p.status!=='inativo')notifs.push({icon:'→',cls:'ni-yellow',title:'Última sessão: '+p.nome,desc:'Avalie renovação.'});
+    if(p.sessoes>=6&&p.status!=='finalizado'&&p.status!=='inativo')notifs.push({icon:'✓',cls:'ni-green',title:'Concluído: '+p.nome,desc:'Marque como finalizado.'});
     if(scope==='admin'&&!p.therapistId)notifs.push({icon:'◎',cls:'ni-yellow',title:'Sem terapeuta: '+p.nome,desc:'Paciente sem terapeuta.'});
   });
   return notifs;
