@@ -1933,10 +1933,12 @@ function renderDashboardPending(){
   if(activeStatusFilter!=='all') res=res.filter(p=>p.status===activeStatusFilter);
   if(activeStatusFilter==='all'){
     // sem filtro: mostra os 5 sem terapeuta (espera primeiro), depois os demais até completar 5
+    // Ativos sem terapeuta primeiro, ativos com terapeuta depois, finalizados/inativos por último
     const semT = res.filter(p=>!p.therapistId&&p.status!=='finalizado'&&p.status!=='inativo')
-      .sort((a,b)=>['espera','andamento','pausado','finalizado','inativo'].indexOf(a.status)-['espera','andamento','pausado','finalizado','inativo'].indexOf(b.status));
+      .sort((a,b)=>['espera','andamento','pausado'].indexOf(a.status)-['espera','andamento','pausado'].indexOf(b.status));
     const comT = res.filter(p=>!!p.therapistId&&p.status!=='finalizado'&&p.status!=='inativo');
-    res = [...semT,...comT].slice(0,5);
+    const inativos = res.filter(p=>p.status==='inativo');
+    res = [...semT,...comT,...inativos].slice(0,5);
   } else {
     res = res.slice(0,5);
   }
