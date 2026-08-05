@@ -456,6 +456,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
           <div class="metric-card" style="flex:1"><div class="metric-label" style="color:var(--yellow)">⏳ Em espera</div><div class="metric-value" id="m-espera">0</div><div class="metric-accent" style="background:var(--yellow)"></div></div>
           <div class="metric-card" style="flex:1"><div class="metric-label" style="color:var(--blue)">▶️ Em andamento</div><div class="metric-value" id="m-andamento">0</div><div class="metric-accent"></div></div>
           <div class="metric-card" style="flex:1"><div class="metric-label" style="color:var(--teal)">✅ Finalizados</div><div class="metric-value" id="m-final">0</div><div class="metric-accent"></div></div>
+          <div class="metric-card" style="flex:1"><div class="metric-label" style="color:#94a3b8">💤 Inativos</div><div class="metric-value" id="m-inativo">0</div><div class="metric-accent" style="background:#94a3b8"></div></div>
           <div class="metric-card" style="flex:1"><div class="metric-label" style="color:var(--red)">⏸️ Pausados</div><div class="metric-value" id="m-pausado">0</div><div class="metric-accent" style="background:var(--red)"></div></div>
         </div>
       </div>
@@ -1789,7 +1790,7 @@ function renderTherapistGrid(list){
         +(t.disp_obs?'<div style="margin-top:6px;font-size:.68rem;color:var(--text3);font-style:italic">'+t.disp_obs+'</div>':'')
         +'</div></div>'
       :'<div style="margin:10px 0;padding:8px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;font-size:.72rem;color:var(--text3)">Sem disponibilidade cadastrada</div>';
-    return'<div class="therapist-card"><div class="tc-header">'+tAvatarHTML(t,44,10)+'<div class="t-info"><h4>'+t.nome+'</h4><p>'+(t.esp||'Terapeuta')+(t.crp?' · CRP '+t.crp:'')+'</p></div><div style="margin-left:auto"><span class="lv lv'+t.nivel+'">Nível '+t.nivel+'</span></div></div>'+bio+'<div class="tc-credentials"><div class="cred-row"><span class="cred-label">Usuário</span><span class="cred-val">'+t.username+'</span></div><div class="cred-row"><span class="cred-label">Senha</span><span class="cred-val">••••••••</span><button class="cred-edit" onclick="editTherapist(\''+t.id+'\')">Editar</button></div><div class="cred-row"><span class="cred-label">Pacientes</span><span class="cred-val">'+qtd+' atribuído(s)</span></div>'+mod+exp+'</div>'+esps+dispSection+'<div class="tc-footer">'+(t.bloqueado?'<span class="tc-badge" style="background:#fee2e2;color:#b91c1c">🔒 Bloqueado</span>':'<span class="tc-badge">✅ Ativo</span>')+'<div style="display:flex;gap:8px;margin-left:auto"><button class="link-btn" style="color:'+(t.bloqueado?'#16a34a':'#b45309')+'" onclick="toggleBloquearTerapeuta(\''+t.id+'\')">'+(t.bloqueado?'🔓 Desbloquear':'🔒 Bloquear')+'</button><button class="link-btn" style="color:var(--red)" onclick="removeTherapist(\''+t.id+'\')">Remover</button></div></div></div>';
+    return'<div class="therapist-card" style="'+(t.bloqueado?'opacity:.5;filter:grayscale(.6);border:2px dashed var(--red);position:relative':'')+'">'+(t.bloqueado?'<div style="position:absolute;top:0;left:0;right:0;background:rgba(220,38,38,.1);border-radius:10px 10px 0 0;padding:5px 12px;display:flex;align-items:center;gap:6px;font-size:.72rem;font-weight:700;color:var(--red);border-bottom:1px dashed var(--red)">🔒 TERAPEUTA BLOQUEADO</div><div style="margin-top:28px">':'<div>')+'<div class="tc-header">'+tAvatarHTML(t,44,10)+'<div class="t-info"><h4>'+t.nome+'</h4><p>'+(t.esp||'Terapeuta')+(t.crp?' · CRP '+t.crp:'')+'</p></div><div style="margin-left:auto"><span class="lv lv'+t.nivel+'">Nível '+t.nivel+'</span></div></div>'+bio+'<div class="tc-credentials"><div class="cred-row"><span class="cred-label">Usuário</span><span class="cred-val">'+t.username+'</span></div><div class="cred-row"><span class="cred-label">Senha</span><span class="cred-val">••••••••</span><button class="cred-edit" onclick="editTherapist(\''+t.id+'\')">Editar</button></div><div class="cred-row"><span class="cred-label">Pacientes</span><span class="cred-val">'+qtd+' atribuído(s)</span></div>'+mod+exp+'</div>'+esps+dispSection+'<div class="tc-footer">'+(t.bloqueado?'<span class="tc-badge" style="background:#fee2e2;color:#b91c1c">🔒 Bloqueado</span>':'<span class="tc-badge">✅ Ativo</span>')+'<div style="display:flex;gap:8px;margin-left:auto"><button class="link-btn" style="color:'+(t.bloqueado?'#16a34a':'#b45309')+'" onclick="toggleBloquearTerapeuta(\''+t.id+'\')">'+(t.bloqueado?'🔓 Desbloquear':'🔒 Bloquear')+'</button><button class="link-btn" style="color:var(--red)" onclick="removeTherapist(\''+t.id+'\')">Remover</button></div></div></div>';
   }).join('');
 }
 function renderTherapistAdmin(){populateEspFilter();clearTherapistFilters();}
@@ -2353,7 +2354,7 @@ function renderDevHistoryList(p){
           +'<span class="dev-char-count" id="dev-count-'+n+'">'+txt.length+' caracteres</span>'
           +saveBtn
         +'</div>'
-      +'</div></div>';
+      +'</div></div></div>';
   }).join('');
 }
 
