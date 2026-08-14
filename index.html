@@ -825,6 +825,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
   <div class="modal-body" id="mf-body"></div>
   <div style="padding:16px 20px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:10px">
     <button class="btn-danger" id="mf-remove-t-btn" onclick="removePatientTherapist(_currentFichaId)" style="display:none">👤 Remover terapeuta</button>
+    <button id="mf-inativo-btn" onclick="toggleFichaInativo()" style="background:rgba(148,163,184,.12);border:1px solid #94a3b8;color:#94a3b8;border-radius:8px;padding:7px 14px;font-size:.8rem;cursor:pointer;font-weight:500">💤 Inativo</button>
     <button class="btn-danger" id="mf-delete-btn" onclick="deleteFicha()" style="margin-left:auto">🗑 Deletar ficha</button>
   </div>
 </div></div>
@@ -2098,6 +2099,27 @@ function renderCasaisTable(list){
   }).join('');
 }
 function filterCasaisTable(v){renderCasaisTable(currentCasais.filter(c=>(c.p1_nome||'').toLowerCase().includes(v.toLowerCase())||(c.p2_nome||'').toLowerCase().includes(v.toLowerCase())));}
+
+async function toggleFichaInativo(){
+  const p=patients.find(x=>x.id===_currentFichaId);
+  if(!p)return;
+  const newStatus=p.status==='inativo'?'espera':'inativo';
+  const ok=await dbUpdate('fichas_triagem',p.id,{status:newStatus});
+  if(ok){
+    p.status=newStatus;
+    // Update button text
+    const btn=document.getElementById('mf-inativo-btn');
+    if(btn){
+      btn.textContent=newStatus==='inativo'?'✅ Reativar':'💤 Inativo';
+      btn.style.background=newStatus==='inativo'?'rgba(45,212,170,.1)':'rgba(148,163,184,.12)';
+      btn.style.borderColor=newStatus==='inativo'?'var(--teal)':'#94a3b8';
+      btn.style.color=newStatus==='inativo'?'var(--teal)':'#94a3b8';
+    }
+    applyFilters();updateMetrics();
+    showToast(newStatus==='inativo'?'💤 Ficha marcada como inativa.':'✅ Ficha reativada.');
+  }
+}
+
 async function deleteFicha(){
   if(!_currentFichaId){return;}
   const p=patients.find(x=>x.id===_currentFichaId);
@@ -2173,6 +2195,15 @@ function openFicha(id){
   const deleteBtn=document.getElementById('mf-delete-btn');
   const isAdmin=!!document.getElementById('screen-admin')?.classList.contains('active');
   if(removeBtn)removeBtn.style.display=(isAdmin&&p.therapistId)?'block':'none';
+  const inativoBtn=document.getElementById('mf-inativo-btn');
+  if(inativoBtn){
+    const isInativo=p.status==='inativo';
+    inativoBtn.textContent=isInativo?'✅ Reativar':'💤 Inativo';
+    inativoBtn.style.background=isInativo?'rgba(45,212,170,.1)':'rgba(148,163,184,.12)';
+    inativoBtn.style.borderColor=isInativo?'var(--teal)':'#94a3b8';
+    inativoBtn.style.color=isInativo?'var(--teal)':'#94a3b8';
+    inativoBtn.style.display=isAdmin?'':'none';
+  }
   if(deleteBtn)deleteBtn.style.display=isAdmin?'block':'none';
   document.getElementById('modal-ficha').classList.add('open');
 }
