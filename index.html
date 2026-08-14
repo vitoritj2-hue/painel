@@ -485,7 +485,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
       <div class="data-card">
         <div class="data-card-header"><span class="data-card-title" id="table-count-label">Pacientes</span><button class="btn-secondary" onclick="exportCSV()" style="font-size:.76rem;padding:6px 14px">Exportar CSV</button></div>
         <div style="overflow-x:auto"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
-        <span style="font-size:.78rem;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">⏳ Aguardando terapeuta</span>
+        <span class="dash-section-label" style="font-size:.78rem;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">⏳ Aguardando terapeuta</span>
         <button class="btn-secondary" style="font-size:.76rem;padding:5px 14px" onclick="switchTab('admin','fichas',document.querySelector('#admin-tabs .tab-btn:nth-child(2)'))">Mostrar todos os pacientes →</button>
       </div>
       <div id="dashboard-pending-list" style="display:flex;flex-direction:column;gap:6px"></div>
@@ -1929,19 +1929,47 @@ function renderDashboardPending(){
   if(!list) return;
   const sl={espera:'⏳',andamento:'▶️',pausado:'⏸️',finalizado:'✅',inativo:'💤'};
   const sc={espera:'var(--yellow)',andamento:'var(--blue)',pausado:'var(--red)',finalizado:'var(--teal)',inativo:'#94a3b8'};
-  // Respeita filtro de status ativo; sem filtro → prioriza sem terapeuta
+
+  // Filtros ativos
+  const tId = document.getElementById('filter-terapeuta')?.value || '';
+  const q   = (document.getElementById('search-q')?.value||'').trim().toLowerCase();
+  const tipo = document.getElementById('filter-tipo')?.value || '';
+
   let res = [...patients];
+
+  // Filtro por terapeuta selecionado
+  if(tId === 'none') res = res.filter(p=>!p.therapistId);
+  else if(tId) res = res.filter(p=>p.therapistId===tId);
+
+  // Filtro por status
   if(activeStatusFilter!=='all') res=res.filter(p=>p.status===activeStatusFilter);
-  if(activeStatusFilter==='all'){
-    // sem filtro: mostra os 5 sem terapeuta (espera primeiro), depois os demais até completar 5
-    // Ativos sem terapeuta primeiro, ativos com terapeuta depois, finalizados/inativos por último
+
+  // Filtro por busca e tipo
+  if(q) res=res.filter(p=>p.nome.toLowerCase().includes(q));
+  if(tipo) res=res.filter(p=>p.tipo===tipo);
+
+  // Sem filtro específico: ordenar (sem terapeuta primeiro, inativos por último)
+  if(!tId && activeStatusFilter==='all' && !q && !tipo){
     const semT = res.filter(p=>!p.therapistId&&p.status!=='finalizado'&&p.status!=='inativo')
       .sort((a,b)=>['espera','andamento','pausado'].indexOf(a.status)-['espera','andamento','pausado'].indexOf(b.status));
     const comT = res.filter(p=>!!p.therapistId&&p.status!=='finalizado'&&p.status!=='inativo');
     const inativos = res.filter(p=>p.status==='inativo');
-    res = [...semT,...comT,...inativos].slice(0,5);
-  } else {
-    res = res.slice(0,5);
+    res = [...semT,...comT,...inativos];
+  }
+
+  res = res.slice(0,5);
+
+  // Update section label
+  const label = document.querySelector('#page-admin-dashboard .dash-section-label');
+  if(label){
+    if(tId && tId!=='none'){
+      const t=therapists.find(x=>x.id===tId);
+      label.textContent = t ? '👤 Pacientes de '+t.nome : '⏳ Aguardando terapeuta';
+    } else if(tId==='none'){
+      label.textContent = '⏳ Sem terapeuta';
+    } else {
+      label.textContent = '⏳ Aguardando terapeuta';
+    }
   }
   if(!res.length){
     list.innerHTML='';
@@ -2004,7 +2032,7 @@ function applyFilters(){
   const tipo=document.getElementById('filter-tipo')?.value||'';
   const tId=document.getElementById('filter-terapeuta')?.value||'';
   clearTimeout(_filterDebounce);
-  _filterDebounce=setTimeout(()=>_runFilter(q,tipo,tId),400);
+  _filterDebounce=setTimeout(()=>{_runFilter(q,tipo,tId);renderDashboardPending();},400);
 }
 let _filterDebounce=null;
 
