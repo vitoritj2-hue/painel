@@ -2062,8 +2062,8 @@ function renderAdminTable(list,q){
   const tb=document.getElementById('admin-table-body');if(!tb)return;
   const wrap=document.getElementById('admin-load-more-wrap');if(wrap)wrap.style.display=(!q&&_hasMorePatients)?'block':'none';
   if(!list.length){tb.innerHTML='<tr class="empty-row"><td colspan="5">Nenhum paciente encontrado.</td></tr>';return;}
-  const sc={espera:'var(--yellow)',andamento:'var(--blue)',pausado:'var(--red)',finalizado:'var(--teal)'};
-  const sl={espera:'⏳',andamento:'▶️',pausado:'⏸️',finalizado:'✅'};
+  const sc={espera:'var(--yellow)',andamento:'var(--blue)',pausado:'var(--red)',finalizado:'var(--teal)',inativo:'#94a3b8'};
+  const sl={espera:'⏳',andamento:'▶️',pausado:'⏸️',finalizado:'✅',inativo:'💤'};
   const bc={espera:'ay',andamento:'ab',pausado:'ar',finalizado:'ag',inativo:'ai'};
   tb.innerHTML=list.map(p=>{
     const t=therapists.find(x=>x.id===p.therapistId);
