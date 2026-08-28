@@ -2130,13 +2130,14 @@ function filterCasaisTable(v){renderCasaisTable(currentCasais.filter(c=>(c.p1_no
 
 async function toggleFichaInativo(){
   const p=patients.find(x=>x.id===_currentFichaId);
-  if(!p)return;
+  if(!p){showToast('⚠️ Paciente não encontrado.');return;}
   const newStatus=p.status==='inativo'?'espera':'inativo';
+  const btn=document.getElementById('mf-inativo-btn');
+  if(btn){btn.disabled=true;btn.textContent='Salvando...';}
   const ok=await dbUpdate('fichas_triagem',p.id,{status:newStatus});
+  if(btn){btn.disabled=false;}
   if(ok){
     p.status=newStatus;
-    // Update button text
-    const btn=document.getElementById('mf-inativo-btn');
     if(btn){
       btn.textContent=newStatus==='inativo'?'✅ Reativar':'💤 Inativo';
       btn.style.background=newStatus==='inativo'?'rgba(45,212,170,.1)':'rgba(148,163,184,.12)';
