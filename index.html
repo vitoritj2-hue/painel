@@ -1052,7 +1052,7 @@ async function dbDelete(table,id){
 function mapPatient(r){
   let sintomas=[];try{sintomas=typeof r.sintomas==='string'?JSON.parse(r.sintomas):(r.sintomas||[]);}catch(e){sintomas=[];}
   let devolutivas={};try{devolutivas=typeof r.devolutivas==='string'?JSON.parse(r.devolutivas):(r.devolutivas||{});}catch(e){devolutivas={};}
-  const sm={'pendente':'espera','obs':'espera','imprevisto':'pausado','espera':'espera','andamento':'andamento','pausado':'pausado','finalizado':'finalizado'};
+  const sm={'pendente':'espera','obs':'espera','imprevisto':'pausado','espera':'espera','andamento':'andamento','pausado':'pausado','finalizado':'finalizado','inativo':'inativo'};
   return{id:r.id,tipo:r.tipo||'Adulto',nome:r.nome||'—',nasc:r.nasc||'',cpf:r.cpf||'',tel:r.tel||'',email:r.email||'',sexo:r.sexo||'',ecivil:r.ecivil||'',cidade:r.cidade||'',queixa:r.queixa||'',terapia:r.terapia||'',med:r.med||'',sintomas,religiao:r.religiao||'',renda:r.renda||'',auxilio:r.auxilio||'',motivacao:r.motivacao||'',expectativa:r.expectativa||'',dias:r.dias||'',periodo:r.periodo||'',preferenciaT:r.preferenciaT||'',escola:r.escola||'',resp:r.resp||'',parent:r.parent||'',hist:r.hist||'',reside:r.reside||'',data:r.created_at?new Date(r.created_at).toLocaleDateString('pt-BR'):'',status:sm[r.status]||'andamento',sessoes:r.sessoes||0,devolutiva:r.devolutiva||'',obs:r.obs||'',therapistId:r.therapistId||null,devolutivas,assinatura_consentimento:r.assinatura_consentimento||null};
 }
 
