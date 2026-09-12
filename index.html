@@ -686,12 +686,29 @@ tr:hover td{background:rgba(255,255,255,.015)}
             <div style="font-size:.7rem;color:var(--text3);margin-top:4px">É assim que seu nome vai aparecer na tela de escolha de terapeuta. Deixe em branco para usar seu nome de cadastro.</div>
           </div>
           <div style="margin-bottom:18px">
-            <label style="font-size:.72rem;font-weight:500;color:var(--text2);display:block;margin-bottom:8px">Cor do seu card</label>
-            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-              <input type="color" id="perfil-cor" value="#4f8ef7" oninput="updatePerfilPreview()" style="width:44px;height:36px;border-radius:8px;border:1px solid var(--border2);background:none;cursor:pointer;padding:2px">
-              <div id="cor-swatches" style="display:flex;gap:6px"></div>
+            <label style="font-size:.72rem;font-weight:500;color:var(--text2);display:block;margin-bottom:8px">Cores do seu card (gradiente)</label>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+                <input type="color" id="perfil-cor" value="#4f8ef7" oninput="updatePerfilPreview()" style="width:44px;height:36px;border-radius:8px;border:1px solid var(--border2);background:none;cursor:pointer;padding:2px">
+                <span style="font-size:.62rem;color:var(--text3)">Início</span>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+                <input type="color" id="perfil-cor2" value="#2dd4aa" oninput="updatePerfilPreview()" style="width:44px;height:36px;border-radius:8px;border:1px solid var(--border2);background:none;cursor:pointer;padding:2px">
+                <span style="font-size:.62rem;color:var(--text3)">Fim</span>
+              </div>
               <button type="button" class="btn-secondary" style="font-size:.74rem;padding:6px 12px" onclick="resetCorCard()">Usar cor padrão</button>
             </div>
+            <div style="font-size:.68rem;color:var(--text3);margin-bottom:6px">Combinações prontas:</div>
+            <div id="cor-combos" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+          </div>
+          <div style="margin-bottom:18px">
+            <label style="font-size:.72rem;font-weight:500;color:var(--text2);display:block;margin-bottom:8px">Ícone da sua abordagem</label>
+            <div id="icone-opcoes" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"></div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="text" id="perfil-icone-custom" placeholder="ou cole outro emoji aqui" maxlength="4" style="width:120px;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:8px;padding:6px 10px;font-size:.9rem;outline:none" oninput="if(this.value){document.getElementById('perfil-icone').value=this.value;renderIconeOpcoes();updatePerfilPreview();}">
+              <button type="button" class="btn-secondary" style="font-size:.74rem;padding:6px 12px" onclick="document.getElementById('perfil-icone').value='';document.getElementById('perfil-icone-custom').value='';renderIconeOpcoes();updatePerfilPreview()">Nenhum</button>
+            </div>
+            <input type="hidden" id="perfil-icone" value="">
           </div>
           <div>
             <label style="font-size:.72rem;font-weight:500;color:var(--text2);display:block;margin-bottom:8px">Pré-visualização (como o paciente vê)</label>
@@ -1682,31 +1699,60 @@ function initPerfil(){
   document.getElementById('perfil-pos').value=t.pos||'';
   document.getElementById('perfil-nome-exibicao').value=t.nomeExibicao||'';
   document.getElementById('perfil-cor').value=t.corCard||'#4f8ef7';
-  renderCorSwatches();
+  document.getElementById('perfil-cor2').value=t.corCard2||'#2dd4aa';
+  document.getElementById('perfil-icone').value=t.iconeAbordagem||'';
+  document.getElementById('perfil-icone-custom').value='';
+  renderCorCombos();
+  renderIconeOpcoes();
   updatePerfilPreview();
   renderEspecialidades(t);
 }
-const CORES_SUGERIDAS=['#4f8ef7','#2dd4aa','#f0b429','#f56565','#a78bfa','#f472b6','#38bdf8','#fb923c'];
-function renderCorSwatches(){
-  const wrap=document.getElementById('cor-swatches');if(!wrap)return;
-  wrap.innerHTML=CORES_SUGERIDAS.map(c=>'<button type="button" title="'+c+'" onclick="document.getElementById(\'perfil-cor\').value=\''+c+'\';updatePerfilPreview()" style="width:22px;height:22px;border-radius:6px;border:1px solid var(--border2);background:'+c+';cursor:pointer;padding:0"></button>').join('');
+const CORES_COMBOS=[
+  {a:'#4f8ef7',b:'#2dd4aa',nome:'Azul e verde-água (padrão)'},
+  {a:'#a78bfa',b:'#f472b6',nome:'Roxo e rosa'},
+  {a:'#fb923c',b:'#f0b429',nome:'Laranja e âmbar'},
+  {a:'#2dd4aa',b:'#0d9488',nome:'Verdes'},
+  {a:'#f56565',b:'#a78bfa',nome:'Vermelho suave e roxo'},
+  {a:'#38bdf8',b:'#1e3a8a',nome:'Azul-céu e marinho'}
+];
+function renderCorCombos(){
+  const wrap=document.getElementById('cor-combos');if(!wrap)return;
+  wrap.innerHTML=CORES_COMBOS.map(c=>'<button type="button" title="'+c.nome+'" onclick="document.getElementById(\'perfil-cor\').value=\''+c.a+'\';document.getElementById(\'perfil-cor2\').value=\''+c.b+'\';updatePerfilPreview()" style="width:40px;height:26px;border-radius:7px;border:1px solid var(--border2);background:linear-gradient(135deg,'+c.a+','+c.b+');cursor:pointer;padding:0"></button>').join('');
 }
-function resetCorCard(){document.getElementById('perfil-cor').value='#4f8ef7';updatePerfilPreview();}
+function resetCorCard(){document.getElementById('perfil-cor').value='#4f8ef7';document.getElementById('perfil-cor2').value='#2dd4aa';updatePerfilPreview();}
+const ICONES_ABORDAGEM=[
+  {e:'🧠',nome:'Cognitivo-comportamental'},
+  {e:'🌱',nome:'Humanista / crescimento'},
+  {e:'💙',nome:'Acolhimento emocional'},
+  {e:'🕊️',nome:'Espiritualidade / sentido'},
+  {e:'🌊',nome:'Trauma / abordagem somática'},
+  {e:'✨',nome:'Autoconhecimento'},
+  {e:'🤝',nome:'Casal / família'},
+  {e:'🔬',nome:'Baseado em evidências'},
+  {e:'👶',nome:'Infantil'}
+];
+function renderIconeOpcoes(){
+  const wrap=document.getElementById('icone-opcoes');if(!wrap)return;
+  const atual=document.getElementById('perfil-icone').value;
+  wrap.innerHTML=ICONES_ABORDAGEM.map(o=>'<button type="button" title="'+o.nome+'" onclick="document.getElementById(\'perfil-icone\').value=\''+o.e+'\';document.getElementById(\'perfil-icone-custom\').value=\'\';renderIconeOpcoes();updatePerfilPreview()" style="width:36px;height:36px;border-radius:8px;border:1px solid '+(atual===o.e?'var(--blue)':'var(--border2)')+';background:'+(atual===o.e?'rgba(91,156,246,.12)':'var(--bg3)')+';cursor:pointer;font-size:1.05rem;display:flex;align-items:center;justify-content:center">'+o.e+'</button>').join('');
+}
 function updatePerfilPreview(){
   const t=therapists.find(x=>currentTherapist&&x.id===currentTherapist.id)||currentTherapist;if(!t)return;
-  const nomeEl=document.getElementById('perfil-nome-exibicao'),corEl=document.getElementById('perfil-cor'),wrap=document.getElementById('perfil-preview-wrap');
+  const nomeEl=document.getElementById('perfil-nome-exibicao'),corEl=document.getElementById('perfil-cor'),cor2El=document.getElementById('perfil-cor2'),iconeEl=document.getElementById('perfil-icone'),wrap=document.getElementById('perfil-preview-wrap');
   if(!nomeEl||!corEl||!wrap)return;
   const nome=nomeEl.value.trim()||t.nome;
   const cor=corEl.value||'#4f8ef7';
+  const cor2=(cor2El&&cor2El.value)||'#2dd4aa';
+  const icone=iconeEl?iconeEl.value:'';
   const esp=(t.esp||t.formacao||'Terapeuta');
   const fotoHtml=t.foto?'<img src="'+t.foto+'" style="width:100%;height:100%;object-fit:cover;display:block">'
     :'<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-family:\'Cormorant Garamond\',serif;font-size:2.2rem;font-weight:600;color:#fff">'+initials(nome)+'</div>';
   wrap.innerHTML='<div style="background:#111d33;border:1px solid rgba(255,255,255,.08);border-top:3px solid '+cor+';border-radius:16px;overflow:hidden">'
-    +'<div style="width:100%;aspect-ratio:4/5;background:linear-gradient(135deg,'+cor+',#0d1628)">'+fotoHtml+'</div>'
+    +'<div style="width:100%;aspect-ratio:4/5;background:linear-gradient(135deg,'+cor+','+cor2+')">'+fotoHtml+'</div>'
     +'<div style="padding:14px 16px;display:flex;flex-direction:column;gap:8px">'
-    +'<div style="font-family:\'Cormorant Garamond\',serif;font-size:1.15rem;font-weight:600;color:#eef2ff;line-height:1.2">'+nome+'</div>'
+    +'<div style="font-family:\'Cormorant Garamond\',serif;font-size:1.15rem;font-weight:600;color:#eef2ff;line-height:1.2">'+(icone?icone+' ':'')+nome+'</div>'
     +'<div style="font-family:\'DM Sans\',sans-serif;font-size:.68rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:#e8c97a">'+esp+'</div>'
-    +'<button type="button" style="font-family:\'DM Sans\',sans-serif;background:linear-gradient(135deg,'+cor+',#2dd4aa);color:#fff;border:none;padding:9px 0;border-radius:50px;font-size:.76rem;font-weight:600;margin-top:4px;pointer-events:none">Escolher este terapeuta ›</button>'
+    +'<button type="button" style="font-family:\'DM Sans\',sans-serif;background:linear-gradient(135deg,'+cor+','+cor2+');color:#fff;border:none;padding:9px 0;border-radius:50px;font-size:.76rem;font-weight:600;margin-top:4px;pointer-events:none">Escolher este terapeuta ›</button>'
     +'</div></div>';
 }
 function renderEspecialidades(t){
@@ -1729,7 +1775,7 @@ async function handleFotoUpload(input){
 }
 async function removerFoto(){const t=therapists.find(x=>x.id===currentTherapist.id);if(!t)return;t.foto=null;currentTherapist.foto=null;await dbUpdate('terapeutas',t.id,{foto:null});document.getElementById('perfil-foto-img').style.display='none';document.getElementById('perfil-initials-display').style.display='block';updateTherapistHeader();updatePerfilPreview();showToast('Foto removida.');}
 function updateBioCount(){const bio=document.getElementById('perfil-bio'),cnt=document.getElementById('bio-count');if(bio&&cnt)cnt.textContent=bio.value.length+'/400 caracteres';}
-async function salvarPerfil(){if(!currentTherapist){showToast('Sessão expirada. Faça login novamente.');return;}const t=therapists.find(x=>x.id===currentTherapist.id);if(!t){showToast('Terapeuta não encontrado.');return;}t.bio=document.getElementById('perfil-bio').value.trim();t.experiencia=document.getElementById('perfil-experiencia').value;t.modalidade=document.getElementById('perfil-modalidade').value;t.formacao=document.getElementById('perfil-formacao').value.trim();t.pos=document.getElementById('perfil-pos').value.trim();t.nomeExibicao=document.getElementById('perfil-nome-exibicao').value.trim();t.corCard=document.getElementById('perfil-cor').value;currentTherapist={...currentTherapist,...t};const _fields={bio:t.bio,experiencia:t.experiencia,modalidade:t.modalidade,formacao:t.formacao,pos:t.pos,nomeExibicao:t.nomeExibicao,corCard:t.corCard,especialidades:JSON.stringify(t.especialidades||[]),customEspecialidades:JSON.stringify(t.customEspecialidades||[])};const{error}=await db.from('terapeutas').update(_fields).eq('id',t.id);if(error){console.error('salvarPerfil:',error);showToast('Erro ao salvar. Verifique a conexão.');}else{showSaveIndicator();showToast('Perfil salvo com sucesso!');}}
+async function salvarPerfil(){if(!currentTherapist){showToast('Sessão expirada. Faça login novamente.');return;}const t=therapists.find(x=>x.id===currentTherapist.id);if(!t){showToast('Terapeuta não encontrado.');return;}t.bio=document.getElementById('perfil-bio').value.trim();t.experiencia=document.getElementById('perfil-experiencia').value;t.modalidade=document.getElementById('perfil-modalidade').value;t.formacao=document.getElementById('perfil-formacao').value.trim();t.pos=document.getElementById('perfil-pos').value.trim();t.nomeExibicao=document.getElementById('perfil-nome-exibicao').value.trim();t.corCard=document.getElementById('perfil-cor').value;t.corCard2=document.getElementById('perfil-cor2').value;t.iconeAbordagem=document.getElementById('perfil-icone').value;currentTherapist={...currentTherapist,...t};const _fields={bio:t.bio,experiencia:t.experiencia,modalidade:t.modalidade,formacao:t.formacao,pos:t.pos,nomeExibicao:t.nomeExibicao,corCard:t.corCard,corCard2:t.corCard2,iconeAbordagem:t.iconeAbordagem,especialidades:JSON.stringify(t.especialidades||[]),customEspecialidades:JSON.stringify(t.customEspecialidades||[])};const{error}=await db.from('terapeutas').update(_fields).eq('id',t.id);if(error){console.error('salvarPerfil:',error);showToast('Erro ao salvar. Verifique a conexão.');}else{showSaveIndicator();showToast('Perfil salvo com sucesso!');}}
 
 function toggleSenhaVis(inputId,btn){const el=document.getElementById(inputId);if(!el)return;if(el.type==='password'){el.type='text';btn.textContent='🙈';}else{el.type='password';btn.textContent='👁';}}
 
