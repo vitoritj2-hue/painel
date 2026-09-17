@@ -493,6 +493,10 @@ tr:hover td{background:rgba(255,255,255,.015)}
       <div id="dashboard-pending-empty" style="display:none;text-align:center;padding:24px;color:var(--text3);font-size:.85rem">✅ Todos os pacientes têm terapeuta atribuído!</div></div>
         <div id="admin-load-more-wrap" style="text-align:center;margin-top:12px;display:none"><button class="btn-secondary" onclick="loadMorePatients()">Carregar mais</button></div>
       </div>
+      <div class="data-card" style="margin-top:16px">
+        <div class="data-card-header"><span class="data-card-title">Todos os Pacientes (conforme filtro)</span></div>
+        <div style="overflow-x:auto"><table><thead><tr><th>Nome</th><th>Terapeuta</th><th>Sessões</th><th>Status</th><th>Ação</th></tr></thead><tbody id="admin-table-body"></tbody></table></div>
+      </div>
     </div>
 
       <!-- Terapeutas Bloqueados -->
@@ -2233,6 +2237,11 @@ async function loadMorePatients(){
 function renderAdminTable(list,q){
   const tb=document.getElementById('admin-table-body');if(!tb)return;
   const wrap=document.getElementById('admin-load-more-wrap');if(wrap)wrap.style.display=(!q&&_hasMorePatients)?'block':'none';
+  const cnt=document.getElementById('search-results-count');
+  if(cnt){
+    const filtroAtivo=activeStatusFilter!=='all'||!!document.getElementById('filter-tipo')?.value||!!document.getElementById('filter-terapeuta')?.value||!!q;
+    cnt.textContent=filtroAtivo?('Mostrando '+list.length+' de '+patients.length):'Mostrando todos ('+patients.length+')';
+  }
   if(!list.length){tb.innerHTML='<tr class="empty-row"><td colspan="5">Nenhum paciente encontrado.</td></tr>';return;}
   const sc={espera:'var(--yellow)',andamento:'var(--blue)',pausado:'var(--red)',finalizado:'var(--teal)',inativo:'#94a3b8'};
   const sl={espera:'⏳',andamento:'▶️',pausado:'⏸️',finalizado:'✅',inativo:'💤'};
