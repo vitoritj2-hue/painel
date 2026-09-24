@@ -658,8 +658,15 @@ tr:hover td{background:rgba(255,255,255,.015)}
       <div class="data-card" style="margin-bottom:16px">
         <div class="data-card-header"><span class="data-card-title">Categorias de Atendimento</span></div>
         <div style="padding:20px">
-          <div style="font-size:.78rem;color:var(--text2);margin-bottom:14px;line-height:1.5">Marque os públicos que você atende e, dentro de cada um, as subcategorias. Clique em <b>Salvar perfil</b> no final da página para gravar.</div>
+          <div style="font-size:.78rem;color:var(--text2);margin-bottom:14px;line-height:1.5">Marque os públicos que você atende.</div>
           <div id="categorias-wrap"></div>
+        </div>
+      </div>
+      <div class="data-card" style="margin-bottom:16px">
+        <div class="data-card-header"><span class="data-card-title">Subcategorias</span></div>
+        <div style="padding:20px">
+          <div style="font-size:.78rem;color:var(--text2);margin-bottom:14px;line-height:1.5">Escolha os temas em que você atua. Clique em <b>Salvar perfil</b> no final da página para gravar.</div>
+          <div id="subcategorias-wrap"></div>
         </div>
       </div>
       <div class="data-card" style="margin-bottom:16px">
@@ -999,6 +1006,7 @@ function normalizeTherapist(t) {
     ...t,
     disponibilidade: toObj(t.disponibilidade),
     categorias: normalizeCategorias(t.categorias),
+    subcategorias: normalizeSubcategorias(t.subcategorias, t.categorias),
   };
 }
 
@@ -1719,78 +1727,80 @@ function updateTherapistHeader(){
 
 // ══ PERFIL TERAPEUTA ══
 // ══ CATEGORIAS / SUBCATEGORIAS ══
-// Modelo: t.categorias = { 'Infantil': ['Luto e perdas', ...], 'Atendimento de casal': [] }
-// A presença da chave = terapeuta atende a categoria; o array = subcategorias escolhidas.
+// Modelo: t.categorias = ['Infantil', ...] e t.subcategorias = ['Luto e perdas', ...] (duas listas independentes).
+// Compatível com o formato antigo { 'Infantil': ['Luto e perdas'] } (convertido ao carregar).
 const CATEGORIAS=['Infantil','Atendimento de mulheres','Atendimento de homens','Atendimento de casal'];
 const SUBCAT_PADRAO=['Depressão e ansiedade','Luto e perdas','Dependência química','Trauma','Autoestima','Conflitos familiares'];
+function _catParse(v){if(typeof v==='string'&&v.trim()){try{return JSON.parse(v);}catch(e){return null;}}return v;}
 function normalizeCategorias(v){
-  if(typeof v==='string'&&v.trim()){try{v=JSON.parse(v);}catch(e){v=null;}}
-  const out={};
-  if(!v||typeof v!=='object'||Array.isArray(v))return out;
-  CATEGORIAS.forEach(c=>{
-    if(!Object.prototype.hasOwnProperty.call(v,c))return;
-    const arr=Array.isArray(v[c])?v[c]:[];
-    out[c]=[...new Set(arr.filter(x=>typeof x==='string'&&x.trim()).map(x=>x.trim()))];
-  });
-  return out;
+  v=_catParse(v);
+  const raw=Array.isArray(v)?v:(v&&typeof v==='object'?Object.keys(v):[]);
+  return CATEGORIAS.filter(c=>raw.includes(c));
+}
+function normalizeSubcategorias(v,legacy){
+  v=_catParse(v);
+  let raw=Array.isArray(v)?v:[];
+  if(!raw.length){const l=_catParse(legacy);if(l&&typeof l==='object'&&!Array.isArray(l))raw=Object.values(l).filter(Array.isArray).flat();}
+  return [...new Set(raw.filter(x=>typeof x==='string'&&x.trim()).map(x=>x.trim().slice(0,40)))];
 }
 function catEsc(x){return String(x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function renderCategorias(t){
-  const wrap=document.getElementById('categorias-wrap');if(!wrap)return;
-  const cats=t.categorias=normalizeCategorias(t.categorias);
-  wrap.innerHTML=CATEGORIAS.map((c,ci)=>{
-    const on=Object.prototype.hasOwnProperty.call(cats,c),subs=on?cats[c]:[];
-    const head='<div data-act="cat" data-cat="'+catEsc(c)+'" style="padding:10px 14px;border-radius:10px;border:1px solid '+(on?'rgba(79,142,247,.5)':'var(--border2)')+';background:'+(on?'rgba(79,142,247,.08)':'var(--bg3)')+';cursor:pointer;font-size:.86rem;font-weight:600;color:'+(on?'var(--blue)':'var(--text2)')+';display:flex;align-items:center;gap:10px"><span>'+(on?'☑':'☐')+'</span><span>'+catEsc(c)+'</span></div>';
-    if(!on)return'<div style="margin-bottom:10px">'+head+'</div>';
-    const custom=subs.filter(x=>!SUBCAT_PADRAO.includes(x));
+  t.categorias=normalizeCategorias(t.categorias);
+  t.subcategorias=normalizeSubcategorias(t.subcategorias);
+  const wrap=document.getElementById('categorias-wrap');
+  if(wrap)wrap.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px">'+CATEGORIAS.map(c=>{
+    const on=t.categorias.includes(c);
+    return'<div data-act="cat" data-cat="'+catEsc(c)+'" style="padding:12px 14px;border-radius:10px;border:1px solid '+(on?'rgba(79,142,247,.5)':'var(--border2)')+';background:'+(on?'rgba(79,142,247,.08)':'var(--bg3)')+';cursor:pointer;font-size:.86rem;font-weight:600;color:'+(on?'var(--blue)':'var(--text2)')+';display:flex;align-items:center;gap:10px;transition:all .2s"><span>'+(on?'☑':'☐')+'</span><span>'+catEsc(c)+'</span></div>';
+  }).join('')+'</div>';
+  const sw=document.getElementById('subcategorias-wrap');
+  if(sw){
+    const custom=t.subcategorias.filter(x=>!SUBCAT_PADRAO.includes(x));
     const chips=[...SUBCAT_PADRAO,...custom].map(sub=>{
-      const s=subs.includes(sub),isC=!SUBCAT_PADRAO.includes(sub);
-      return'<div data-act="sub" data-cat="'+catEsc(c)+'" data-sub="'+catEsc(sub)+'" style="padding:6px 12px;border-radius:8px;border:1px solid '+(s?'rgba(45,212,170,.4)':'var(--border2)')+';background:'+(s?'rgba(45,212,170,.08)':'var(--bg3)')+';cursor:pointer;font-size:.78rem;color:'+(s?'var(--teal)':'var(--text2)')+';display:flex;align-items:center;gap:6px">'+catEsc(sub)+(isC?'<button type="button" data-act="rmsub" data-cat="'+catEsc(c)+'" data-sub="'+catEsc(sub)+'" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:0">×</button>':'')+'</div>';
+      const on=t.subcategorias.includes(sub),isC=!SUBCAT_PADRAO.includes(sub);
+      return'<div data-act="sub" data-sub="'+catEsc(sub)+'" style="padding:7px 12px;border-radius:8px;border:1px solid '+(on?'rgba(45,212,170,.4)':'var(--border2)')+';background:'+(on?'rgba(45,212,170,.08)':'var(--bg3)')+';cursor:pointer;font-size:.8rem;color:'+(on?'var(--teal)':'var(--text2)')+';display:flex;align-items:center;gap:6px;transition:all .2s">'+catEsc(sub)+(isC?'<button type="button" data-act="rmsub" data-sub="'+catEsc(sub)+'" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:0">×</button>':'')+'</div>';
     }).join('');
-    const add='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px"><input type="text" id="cat-new-'+ci+'" data-cat="'+catEsc(c)+'" maxlength="40" placeholder="Adicionar outra subcategoria..." style="flex:1;min-width:180px;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:8px;padding:7px 12px;font-size:.8rem;outline:none"><button type="button" class="btn-primary" data-act="addsub" data-cat="'+catEsc(c)+'" data-idx="'+ci+'" style="padding:7px 14px;font-size:.78rem">+ Adicionar</button></div>';
-    return'<div style="margin-bottom:10px">'+head+'<div style="padding:12px 4px 4px 14px"><div style="font-size:.7rem;color:var(--text3);margin-bottom:8px">Subcategorias de '+catEsc(c)+'</div><div style="display:flex;flex-wrap:wrap;gap:8px">'+chips+'</div>'+add+'</div></div>';
-  }).join('');
+    sw.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;margin-bottom:16px">'+chips+'</div>'
+      +'<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding-top:14px;border-top:1px solid var(--border)"><input type="text" id="sub-new" maxlength="40" placeholder="Adicionar outra subcategoria..." style="flex:1;min-width:180px;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:8px;padding:8px 12px;font-size:.83rem;outline:none"><button type="button" class="btn-primary" data-act="addsub" style="padding:8px 16px;font-size:.82rem">+ Adicionar</button></div>';
+  }
 }
 function catsBlockHTML(t){
-  const c=normalizeCategorias(t&&t.categorias),ks=Object.keys(c);
-  if(!ks.length)return'';
-  return'<div style="margin:0 0 10px;display:flex;flex-direction:column;gap:4px">'+ks.map(k=>'<div style="font-size:.68rem;color:var(--text3);line-height:1.4"><b style="color:var(--blue)">'+catEsc(k)+'</b>'+(c[k].length?' · '+c[k].map(catEsc).join(', '):'')+'</div>').join('')+'</div>';
+  const cs=normalizeCategorias(t&&t.categorias),ss=normalizeSubcategorias(t&&t.subcategorias,t&&t.categorias);
+  if(!cs.length&&!ss.length)return'';
+  const chip=(x,cor,bg,bd)=>'<span style="font-size:.65rem;padding:2px 8px;border-radius:50px;background:'+bg+';border:1px solid '+bd+';color:'+cor+'">'+catEsc(x)+'</span>';
+  return'<div style="display:flex;flex-wrap:wrap;gap:5px;margin:0 0 10px">'+cs.map(x=>chip(x,'var(--blue)','rgba(79,142,247,.08)','rgba(79,142,247,.25)')).join('')+ss.map(x=>chip(x,'var(--teal)','rgba(45,212,170,.08)','rgba(45,212,170,.2)')).join('')+'</div>';
 }
-function catAddSub(t,c,val){
-  val=String(val||'').trim().slice(0,40);if(!val||!Array.isArray(t.categorias[c]))return false;
-  const dup=t.categorias[c].some(x=>x.toLowerCase()===val.toLowerCase());
-  if(!dup){const padrao=SUBCAT_PADRAO.find(x=>x.toLowerCase()===val.toLowerCase());t.categorias[c].push(padrao||val);}
+function catCurrent(){return currentTherapist?therapists.find(x=>x.id===currentTherapist.id):null;}
+function catAddSub(t,val){
+  val=String(val||'').trim().slice(0,40);if(!val)return false;
+  if(!t.subcategorias.some(x=>x.toLowerCase()===val.toLowerCase())){const padrao=SUBCAT_PADRAO.find(x=>x.toLowerCase()===val.toLowerCase());t.subcategorias.push(padrao||val);}
   return true;
 }
 function catHandleClick(ev){
-  const el=ev.target.closest('[data-act]');if(!el||!currentTherapist)return;
-  const t=therapists.find(x=>x.id===currentTherapist.id);if(!t)return;
-  t.categorias=normalizeCategorias(t.categorias);
-  const act=el.dataset.act,c=el.dataset.cat,sub=el.dataset.sub;
-  if(!CATEGORIAS.includes(c))return;
+  const el=ev.target.closest('[data-act]');if(!el)return;
+  const t=catCurrent();if(!t)return;
+  t.categorias=normalizeCategorias(t.categorias);t.subcategorias=normalizeSubcategorias(t.subcategorias);
+  const act=el.dataset.act;
   if(act==='cat'){
-    if(Object.prototype.hasOwnProperty.call(t.categorias,c)){
-      if(t.categorias[c].length&&!confirm('Desmarcar "'+c+'" remove também as subcategorias escolhidas nela. Continuar?'))return;
-      delete t.categorias[c];
-    }else t.categorias[c]=[];
+    const c=el.dataset.cat;if(!CATEGORIAS.includes(c))return;
+    const i=t.categorias.indexOf(c);if(i>=0)t.categorias.splice(i,1);else t.categorias.push(c);
   }else if(act==='sub'){
-    const arr=t.categorias[c];if(!arr)return;const i=arr.indexOf(sub);if(i>=0)arr.splice(i,1);else arr.push(sub);
+    const sub=el.dataset.sub,i=t.subcategorias.indexOf(sub);if(i>=0)t.subcategorias.splice(i,1);else t.subcategorias.push(sub);
   }else if(act==='rmsub'){
-    ev.stopPropagation();t.categorias[c]=(t.categorias[c]||[]).filter(x=>x!==sub);
+    ev.stopPropagation();t.subcategorias=t.subcategorias.filter(x=>x!==el.dataset.sub);
   }else if(act==='addsub'){
-    const inp=document.getElementById('cat-new-'+el.dataset.idx);if(!inp)return;
-    if(catAddSub(t,c,inp.value))inp.value='';
+    const inp=document.getElementById('sub-new');if(!inp)return;
+    if(catAddSub(t,inp.value))inp.value='';
   }else return;
   renderCategorias(t);
 }
 function catHandleKey(ev){
-  if(ev.key!=='Enter'||!ev.target.matches||!ev.target.matches('input[id^="cat-new-"]'))return;
+  if(ev.key!=='Enter'||!ev.target||ev.target.id!=='sub-new')return;
   ev.preventDefault();
-  const t=therapists.find(x=>x.id===currentTherapist?.id);if(!t)return;
-  t.categorias=normalizeCategorias(t.categorias);
-  if(catAddSub(t,ev.target.dataset.cat,ev.target.value)){ev.target.value='';renderCategorias(t);}
+  const t=catCurrent();if(!t)return;
+  t.categorias=normalizeCategorias(t.categorias);t.subcategorias=normalizeSubcategorias(t.subcategorias);
+  if(catAddSub(t,ev.target.value)){ev.target.value='';renderCategorias(t);}
 }
-document.addEventListener('DOMContentLoaded',()=>{const w=document.getElementById('categorias-wrap');if(w){w.addEventListener('click',catHandleClick);w.addEventListener('keydown',catHandleKey);}});
+document.addEventListener('DOMContentLoaded',()=>{['categorias-wrap','subcategorias-wrap'].forEach(id=>{const w=document.getElementById(id);if(w){w.addEventListener('click',catHandleClick);w.addEventListener('keydown',catHandleKey);}});});
 function initPerfil(){
   if(!currentTherapist)return;
   const t=therapists.find(x=>x.id===currentTherapist.id)||currentTherapist;
@@ -1870,7 +1880,7 @@ async function handleFotoUpload(input){
 }
 async function removerFoto(){const t=therapists.find(x=>x.id===currentTherapist.id);if(!t)return;t.foto=null;currentTherapist.foto=null;await dbUpdate('terapeutas',t.id,{foto:null});document.getElementById('perfil-foto-img').style.display='none';document.getElementById('perfil-initials-display').style.display='block';updateTherapistHeader();updatePerfilPreview();showToast('Foto removida.');}
 function updateBioCount(){const bio=document.getElementById('perfil-bio'),cnt=document.getElementById('bio-count');if(bio&&cnt)cnt.textContent=bio.value.length+'/400 caracteres';}
-async function salvarPerfil(){if(!currentTherapist){showToast('Sessão expirada. Faça login novamente.');return;}const t=therapists.find(x=>x.id===currentTherapist.id);if(!t){showToast('Terapeuta não encontrado.');return;}t.bio=document.getElementById('perfil-bio').value.trim();t.experiencia=document.getElementById('perfil-experiencia').value;t.modalidade=document.getElementById('perfil-modalidade').value;t.formacao=document.getElementById('perfil-formacao').value.trim();t.pos=document.getElementById('perfil-pos').value.trim();t.nomeExibicao=document.getElementById('perfil-nome-exibicao').value.trim();t.corCard=document.getElementById('perfil-cor').value;t.corCard2=document.getElementById('perfil-cor2').value;t.iconeAbordagem=document.getElementById('perfil-icone').value;currentTherapist={...currentTherapist,...t};const _fields={bio:t.bio,experiencia:t.experiencia,modalidade:t.modalidade,formacao:t.formacao,pos:t.pos,nomeExibicao:t.nomeExibicao,corCard:t.corCard,corCard2:t.corCard2,iconeAbordagem:t.iconeAbordagem,categorias:JSON.stringify(normalizeCategorias(t.categorias))};const{error}=await db.from('terapeutas').update(_fields).eq('id',t.id);if(error){console.error('salvarPerfil:',error);showToast('Erro ao salvar. Verifique a conexão.');}else{showSaveIndicator();showToast('Perfil salvo com sucesso!');}}
+async function salvarPerfil(){if(!currentTherapist){showToast('Sessão expirada. Faça login novamente.');return;}const t=therapists.find(x=>x.id===currentTherapist.id);if(!t){showToast('Terapeuta não encontrado.');return;}t.bio=document.getElementById('perfil-bio').value.trim();t.experiencia=document.getElementById('perfil-experiencia').value;t.modalidade=document.getElementById('perfil-modalidade').value;t.formacao=document.getElementById('perfil-formacao').value.trim();t.pos=document.getElementById('perfil-pos').value.trim();t.nomeExibicao=document.getElementById('perfil-nome-exibicao').value.trim();t.corCard=document.getElementById('perfil-cor').value;t.corCard2=document.getElementById('perfil-cor2').value;t.iconeAbordagem=document.getElementById('perfil-icone').value;currentTherapist={...currentTherapist,...t};const _fields={bio:t.bio,experiencia:t.experiencia,modalidade:t.modalidade,formacao:t.formacao,pos:t.pos,nomeExibicao:t.nomeExibicao,corCard:t.corCard,corCard2:t.corCard2,iconeAbordagem:t.iconeAbordagem,categorias:JSON.stringify(normalizeCategorias(t.categorias)),subcategorias:JSON.stringify(normalizeSubcategorias(t.subcategorias))};const{error}=await db.from('terapeutas').update(_fields).eq('id',t.id);if(error){console.error('salvarPerfil:',error);showToast('Erro ao salvar. Verifique a conexão.');}else{showSaveIndicator();showToast('Perfil salvo com sucesso!');}}
 
 function toggleSenhaVis(inputId,btn){const el=document.getElementById(inputId);if(!el)return;if(el.type==='password'){el.type='text';btn.textContent='🙈';}else{el.type='password';btn.textContent='👁';}}
 
@@ -1929,11 +1939,11 @@ function setTNivel(val){
   ['all','1','2','3'].forEach(x=>{const c=document.getElementById('t-chip-'+x);if(!c)return;c.className='filter-chip';if(x===val)c.classList.add(val==='all'?'active-all':'active-andamento');});
   applyTherapistFilters();
 }
-function populateSubFilter(){const sel=document.getElementById('t-filter-sub');if(!sel)return;const cur=sel.value,all=new Set();therapists.forEach(t=>{Object.values(normalizeCategorias(t.categorias)).forEach(a=>a.forEach(x=>all.add(x)));});sel.innerHTML='<option value="">Todas</option>';[...all].sort((a,b)=>a.localeCompare(b,'pt-BR')).forEach(e=>{const o=document.createElement('option');o.value=e;o.textContent=e;sel.appendChild(o);});if(cur&&all.has(cur))sel.value=cur;}
+function populateSubFilter(){const sel=document.getElementById('t-filter-sub');if(!sel)return;const cur=sel.value,all=new Set();therapists.forEach(t=>{normalizeSubcategorias(t.subcategorias,t.categorias).forEach(x=>all.add(x));});sel.innerHTML='<option value="">Todas</option>';[...all].sort((a,b)=>a.localeCompare(b,'pt-BR')).forEach(e=>{const o=document.createElement('option');o.value=e;o.textContent=e;sel.appendChild(o);});if(cur&&all.has(cur))sel.value=cur;}
 function applyTherapistFilters(){
   console.log('[DEBUG] therapists.length=', therapists.length, '| therapists[0]?.nome=', therapists[0]?.nome);
   const q=(document.getElementById('t-search-q')?.value||'').toLowerCase().trim(),mod=document.getElementById('t-filter-modalidade')?.value||'',subF=document.getElementById('t-filter-sub')?.value||'',catF=document.getElementById('t-filter-cat')?.value||'',sort=document.getElementById('t-sort')?.value||'recente';
-  let res=therapists.filter(t=>{if(tNivelFilter2!=='all'&&String(t.nivel)!==tNivelFilter2)return false;if(mod&&t.modalidade!==mod)return false;const _c=normalizeCategorias(t.categorias);if(catF&&!Object.prototype.hasOwnProperty.call(_c,catF))return false;if(subF&&!(catF?_c[catF]:Object.values(_c).flat()).includes(subF))return false;if(q){const f=[t.nome,t.crp,t.esp,Object.keys(_c).join(' '),Object.values(_c).flat().join(' '),t.bio,t.modalidade].join(' ').toLowerCase();if(!f.includes(q))return false;}return true;});
+  let res=therapists.filter(t=>{if(tNivelFilter2!=='all'&&String(t.nivel)!==tNivelFilter2)return false;if(mod&&t.modalidade!==mod)return false;const _c=normalizeCategorias(t.categorias),_s=normalizeSubcategorias(t.subcategorias,t.categorias);if(catF&&!_c.includes(catF))return false;if(subF&&!_s.includes(subF))return false;if(q){const f=[t.nome,t.crp,t.esp,_c.join(' '),_s.join(' '),t.bio,t.modalidade].join(' ').toLowerCase();if(!f.includes(q))return false;}return true;});
   res=[...res].sort((a,b)=>{if(sort==='az')return a.nome.localeCompare(b.nome,'pt-BR');if(sort==='za')return b.nome.localeCompare(a.nome,'pt-BR');if(sort==='nivel-asc')return Number(a.nivel)-Number(b.nivel);if(sort==='nivel-desc')return Number(b.nivel)-Number(a.nivel);if(sort==='pacientes')return patients.filter(p=>p.therapistId===b.id&&p.status!=='finalizado'&&p.status!=='inativo').length-patients.filter(p=>p.therapistId===a.id&&p.status!=='finalizado'&&p.status!=='inativo').length;return new Date(b.created_at)-new Date(a.created_at);});
   const cnt=document.getElementById('t-results-count');if(cnt)cnt.textContent=res.length===therapists.length?'Mostrando todos ('+therapists.length+')':res.length+' de '+therapists.length;
   renderTherapistGrid(res);
@@ -3299,14 +3309,14 @@ function populateAssignTherapistList(q){
       return `<div style="padding:9px 12px;border-bottom:1px solid var(--border);opacity:.45;cursor:not-allowed;user-select:none;background:rgba(220,38,38,.04);display:flex;align-items:center;justify-content:space-between">
         <div>
           <div style="font-size:.85rem;font-weight:600">${t.nome}</div>
-          <div style="font-size:.75rem;color:var(--text2)">${t.esp||Object.keys(normalizeCategorias(t.categorias))[0]||''}</div>
+          <div style="font-size:.75rem;color:var(--text2)">${t.esp||normalizeCategorias(t.categorias)[0]||''}</div>
         </div>
         <span style="font-size:.65rem;background:rgba(220,38,38,.12);color:var(--red);border-radius:50px;padding:2px 8px;border:1px solid rgba(220,38,38,.25);white-space:nowrap">🔒 Bloqueado</span>
       </div>`;
     }
     return `<div style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border)" onclick="selectAssignTherapist('${t.id}','${t.nome.replace(/'/g,"\'")}')">
       <div style="font-size:.85rem;font-weight:600">${t.nome}</div>
-      <div style="font-size:.75rem;color:var(--text2)">${t.esp||Object.keys(normalizeCategorias(t.categorias))[0]||''}</div>
+      <div style="font-size:.75rem;color:var(--text2)">${t.esp||normalizeCategorias(t.categorias)[0]||''}</div>
     </div>`;
   }).join(''):'<div style="padding:12px;color:var(--text2);font-size:.82rem">Nenhum terapeuta</div>';
 }
