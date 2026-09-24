@@ -524,6 +524,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
         </div>
         <div class="search-filters" style="margin-top:8px;gap:10px;flex-wrap:wrap">
           <div style="display:flex;align-items:center;gap:6px"><span class="filter-label">Modalidade:</span><select class="filter-select" id="t-filter-modalidade" onchange="applyTherapistFilters()"><option value="">Todas</option><option>Presencial</option><option>Online</option><option>Presencial e Online</option></select></div>
+          <div style="display:flex;align-items:center;gap:6px"><span class="filter-label">Categoria:</span><select class="filter-select" id="t-filter-cat" onchange="applyTherapistFilters()"><option value="">Todas</option><option>Infantil</option><option>Atendimento de mulheres</option><option>Atendimento de homens</option><option>Atendimento de casal</option></select></div>
           <div style="display:flex;align-items:center;gap:6px"><span class="filter-label">Especialidade:</span><select class="filter-select" id="t-filter-esp" onchange="applyTherapistFilters()"><option value="">Todas</option></select></div>
           <div style="display:flex;align-items:center;gap:6px"><span class="filter-label">Ordenar:</span><select class="filter-select" id="t-sort" onchange="applyTherapistFilters()"><option value="recente">Mais recentes</option><option value="az">A → Z</option><option value="za">Z → A</option><option value="nivel-asc">Nível (1→3)</option><option value="nivel-desc">Nível (3→1)</option><option value="pacientes">Mais pacientes</option></select></div>
         </div>
@@ -652,6 +653,13 @@ tr:hover td{background:rgba(255,255,255,.015)}
             <button onclick="document.getElementById('foto-input').click()" class="btn-secondary" style="font-size:.78rem;padding:6px 14px">Alterar foto</button>
             <button onclick="removerFoto()" class="btn-secondary" style="font-size:.78rem;padding:6px 14px;margin-left:8px;color:var(--red);border-color:rgba(245,101,101,.3)">Remover foto</button>
           </div>
+        </div>
+      </div>
+      <div class="data-card" style="margin-bottom:16px">
+        <div class="data-card-header"><span class="data-card-title">Categorias de Atendimento</span></div>
+        <div style="padding:20px">
+          <div style="font-size:.78rem;color:var(--text2);margin-bottom:14px;line-height:1.5">Marque os públicos que você atende e, dentro de cada um, as subcategorias. Clique em <b>Salvar perfil</b> no final da página para gravar.</div>
+          <div id="categorias-wrap"></div>
         </div>
       </div>
       <div class="data-card" style="margin-bottom:16px">
@@ -1001,6 +1009,7 @@ function normalizeTherapist(t) {
     ...t,
     especialidades: toArray(t.especialidades),
     disponibilidade: toObj(t.disponibilidade),
+    categorias: normalizeCategorias(t.categorias),
   };
 }
 
@@ -1720,6 +1729,74 @@ function updateTherapistHeader(){
 }
 
 // ══ PERFIL TERAPEUTA ══
+// ══ CATEGORIAS / SUBCATEGORIAS ══
+// Modelo: t.categorias = { 'Infantil': ['Luto e perdas', ...], 'Atendimento de casal': [] }
+// A presença da chave = terapeuta atende a categoria; o array = subcategorias escolhidas.
+const CATEGORIAS=['Infantil','Atendimento de mulheres','Atendimento de homens','Atendimento de casal'];
+const SUBCAT_PADRAO=['Depressão e ansiedade','Luto e perdas','Dependência química','Trauma','Autoestima','Conflitos familiares'];
+function normalizeCategorias(v){
+  if(typeof v==='string'&&v.trim()){try{v=JSON.parse(v);}catch(e){v=null;}}
+  const out={};
+  if(!v||typeof v!=='object'||Array.isArray(v))return out;
+  CATEGORIAS.forEach(c=>{
+    if(!Object.prototype.hasOwnProperty.call(v,c))return;
+    const arr=Array.isArray(v[c])?v[c]:[];
+    out[c]=[...new Set(arr.filter(x=>typeof x==='string'&&x.trim()).map(x=>x.trim()))];
+  });
+  return out;
+}
+function catEsc(x){return String(x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function renderCategorias(t){
+  const wrap=document.getElementById('categorias-wrap');if(!wrap)return;
+  const cats=t.categorias=normalizeCategorias(t.categorias);
+  wrap.innerHTML=CATEGORIAS.map((c,ci)=>{
+    const on=Object.prototype.hasOwnProperty.call(cats,c),subs=on?cats[c]:[];
+    const head='<div data-act="cat" data-cat="'+catEsc(c)+'" style="padding:10px 14px;border-radius:10px;border:1px solid '+(on?'rgba(79,142,247,.5)':'var(--border2)')+';background:'+(on?'rgba(79,142,247,.08)':'var(--bg3)')+';cursor:pointer;font-size:.86rem;font-weight:600;color:'+(on?'var(--blue)':'var(--text2)')+';display:flex;align-items:center;gap:10px"><span>'+(on?'☑':'☐')+'</span><span>'+catEsc(c)+'</span></div>';
+    if(!on)return'<div style="margin-bottom:10px">'+head+'</div>';
+    const custom=subs.filter(x=>!SUBCAT_PADRAO.includes(x));
+    const chips=[...SUBCAT_PADRAO,...custom].map(sub=>{
+      const s=subs.includes(sub),isC=!SUBCAT_PADRAO.includes(sub);
+      return'<div data-act="sub" data-cat="'+catEsc(c)+'" data-sub="'+catEsc(sub)+'" style="padding:6px 12px;border-radius:8px;border:1px solid '+(s?'rgba(45,212,170,.4)':'var(--border2)')+';background:'+(s?'rgba(45,212,170,.08)':'var(--bg3)')+';cursor:pointer;font-size:.78rem;color:'+(s?'var(--teal)':'var(--text2)')+';display:flex;align-items:center;gap:6px">'+catEsc(sub)+(isC?'<button type="button" data-act="rmsub" data-cat="'+catEsc(c)+'" data-sub="'+catEsc(sub)+'" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:0">×</button>':'')+'</div>';
+    }).join('');
+    const add='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px"><input type="text" id="cat-new-'+ci+'" data-cat="'+catEsc(c)+'" maxlength="40" placeholder="Adicionar outra subcategoria..." style="flex:1;min-width:180px;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:8px;padding:7px 12px;font-size:.8rem;outline:none"><button type="button" class="btn-primary" data-act="addsub" data-cat="'+catEsc(c)+'" data-idx="'+ci+'" style="padding:7px 14px;font-size:.78rem">+ Adicionar</button></div>';
+    return'<div style="margin-bottom:10px">'+head+'<div style="padding:12px 4px 4px 14px"><div style="font-size:.7rem;color:var(--text3);margin-bottom:8px">Subcategorias de '+catEsc(c)+'</div><div style="display:flex;flex-wrap:wrap;gap:8px">'+chips+'</div>'+add+'</div></div>';
+  }).join('');
+}
+function catAddSub(t,c,val){
+  val=String(val||'').trim().slice(0,40);if(!val||!Array.isArray(t.categorias[c]))return false;
+  const dup=t.categorias[c].some(x=>x.toLowerCase()===val.toLowerCase());
+  if(!dup){const padrao=SUBCAT_PADRAO.find(x=>x.toLowerCase()===val.toLowerCase());t.categorias[c].push(padrao||val);}
+  return true;
+}
+function catHandleClick(ev){
+  const el=ev.target.closest('[data-act]');if(!el||!currentTherapist)return;
+  const t=therapists.find(x=>x.id===currentTherapist.id);if(!t)return;
+  t.categorias=normalizeCategorias(t.categorias);
+  const act=el.dataset.act,c=el.dataset.cat,sub=el.dataset.sub;
+  if(!CATEGORIAS.includes(c))return;
+  if(act==='cat'){
+    if(Object.prototype.hasOwnProperty.call(t.categorias,c)){
+      if(t.categorias[c].length&&!confirm('Desmarcar "'+c+'" remove também as subcategorias escolhidas nela. Continuar?'))return;
+      delete t.categorias[c];
+    }else t.categorias[c]=[];
+  }else if(act==='sub'){
+    const arr=t.categorias[c];if(!arr)return;const i=arr.indexOf(sub);if(i>=0)arr.splice(i,1);else arr.push(sub);
+  }else if(act==='rmsub'){
+    ev.stopPropagation();t.categorias[c]=(t.categorias[c]||[]).filter(x=>x!==sub);
+  }else if(act==='addsub'){
+    const inp=document.getElementById('cat-new-'+el.dataset.idx);if(!inp)return;
+    if(catAddSub(t,c,inp.value))inp.value='';
+  }else return;
+  renderCategorias(t);
+}
+function catHandleKey(ev){
+  if(ev.key!=='Enter'||!ev.target.matches||!ev.target.matches('input[id^="cat-new-"]'))return;
+  ev.preventDefault();
+  const t=therapists.find(x=>x.id===currentTherapist?.id);if(!t)return;
+  t.categorias=normalizeCategorias(t.categorias);
+  if(catAddSub(t,ev.target.dataset.cat,ev.target.value)){ev.target.value='';renderCategorias(t);}
+}
+document.addEventListener('DOMContentLoaded',()=>{const w=document.getElementById('categorias-wrap');if(w){w.addEventListener('click',catHandleClick);w.addEventListener('keydown',catHandleKey);}});
 const ESP_PADRAO=['Saúde da Mulher','Atendimento Infantil','Terapia de Casal','Família','Adolescentes','Ansiedade e Depressão','Luto e Perdas','Trauma','Dependência Química','Terceira Idade'];
 function initPerfil(){
   if(!currentTherapist)return;
@@ -1742,6 +1819,7 @@ function initPerfil(){
   renderCorCombos();
   renderIconeOpcoes();
   updatePerfilPreview();
+  renderCategorias(t);
   renderEspecialidades(t);
 }
 const CORES_COMBOS=[
@@ -1812,7 +1890,7 @@ async function handleFotoUpload(input){
 }
 async function removerFoto(){const t=therapists.find(x=>x.id===currentTherapist.id);if(!t)return;t.foto=null;currentTherapist.foto=null;await dbUpdate('terapeutas',t.id,{foto:null});document.getElementById('perfil-foto-img').style.display='none';document.getElementById('perfil-initials-display').style.display='block';updateTherapistHeader();updatePerfilPreview();showToast('Foto removida.');}
 function updateBioCount(){const bio=document.getElementById('perfil-bio'),cnt=document.getElementById('bio-count');if(bio&&cnt)cnt.textContent=bio.value.length+'/400 caracteres';}
-async function salvarPerfil(){if(!currentTherapist){showToast('Sessão expirada. Faça login novamente.');return;}const t=therapists.find(x=>x.id===currentTherapist.id);if(!t){showToast('Terapeuta não encontrado.');return;}t.bio=document.getElementById('perfil-bio').value.trim();t.experiencia=document.getElementById('perfil-experiencia').value;t.modalidade=document.getElementById('perfil-modalidade').value;t.formacao=document.getElementById('perfil-formacao').value.trim();t.pos=document.getElementById('perfil-pos').value.trim();t.nomeExibicao=document.getElementById('perfil-nome-exibicao').value.trim();t.corCard=document.getElementById('perfil-cor').value;t.corCard2=document.getElementById('perfil-cor2').value;t.iconeAbordagem=document.getElementById('perfil-icone').value;currentTherapist={...currentTherapist,...t};const _fields={bio:t.bio,experiencia:t.experiencia,modalidade:t.modalidade,formacao:t.formacao,pos:t.pos,nomeExibicao:t.nomeExibicao,corCard:t.corCard,corCard2:t.corCard2,iconeAbordagem:t.iconeAbordagem,especialidades:JSON.stringify(t.especialidades||[]),customEspecialidades:JSON.stringify(t.customEspecialidades||[])};const{error}=await db.from('terapeutas').update(_fields).eq('id',t.id);if(error){console.error('salvarPerfil:',error);showToast('Erro ao salvar. Verifique a conexão.');}else{showSaveIndicator();showToast('Perfil salvo com sucesso!');}}
+async function salvarPerfil(){if(!currentTherapist){showToast('Sessão expirada. Faça login novamente.');return;}const t=therapists.find(x=>x.id===currentTherapist.id);if(!t){showToast('Terapeuta não encontrado.');return;}t.bio=document.getElementById('perfil-bio').value.trim();t.experiencia=document.getElementById('perfil-experiencia').value;t.modalidade=document.getElementById('perfil-modalidade').value;t.formacao=document.getElementById('perfil-formacao').value.trim();t.pos=document.getElementById('perfil-pos').value.trim();t.nomeExibicao=document.getElementById('perfil-nome-exibicao').value.trim();t.corCard=document.getElementById('perfil-cor').value;t.corCard2=document.getElementById('perfil-cor2').value;t.iconeAbordagem=document.getElementById('perfil-icone').value;currentTherapist={...currentTherapist,...t};const _fields={bio:t.bio,experiencia:t.experiencia,modalidade:t.modalidade,formacao:t.formacao,pos:t.pos,nomeExibicao:t.nomeExibicao,corCard:t.corCard,corCard2:t.corCard2,iconeAbordagem:t.iconeAbordagem,especialidades:JSON.stringify(t.especialidades||[]),customEspecialidades:JSON.stringify(t.customEspecialidades||[]),categorias:JSON.stringify(normalizeCategorias(t.categorias))};const{error}=await db.from('terapeutas').update(_fields).eq('id',t.id);if(error){console.error('salvarPerfil:',error);showToast('Erro ao salvar. Verifique a conexão.');}else{showSaveIndicator();showToast('Perfil salvo com sucesso!');}}
 
 function toggleSenhaVis(inputId,btn){const el=document.getElementById(inputId);if(!el)return;if(el.type==='password'){el.type='text';btn.textContent='🙈';}else{el.type='password';btn.textContent='👁';}}
 
@@ -1874,13 +1952,13 @@ function setTNivel(val){
 function populateEspFilter(){const sel=document.getElementById('t-filter-esp');if(!sel)return;const cur=sel.value,all=new Set();therapists.forEach(t=>{(t.especialidades||[]).forEach(e=>all.add(e));if(t.esp)all.add(t.esp);});sel.innerHTML='<option value="">Todas</option>';[...all].sort().forEach(e=>{const o=document.createElement('option');o.value=e;o.textContent=e;sel.appendChild(o);});if(cur)sel.value=cur;}
 function applyTherapistFilters(){
   console.log('[DEBUG] therapists.length=', therapists.length, '| therapists[0]?.nome=', therapists[0]?.nome);
-  const q=(document.getElementById('t-search-q')?.value||'').toLowerCase().trim(),mod=document.getElementById('t-filter-modalidade')?.value||'',esp=document.getElementById('t-filter-esp')?.value||'',sort=document.getElementById('t-sort')?.value||'recente';
-  let res=therapists.filter(t=>{if(tNivelFilter2!=='all'&&String(t.nivel)!==tNivelFilter2)return false;if(mod&&t.modalidade!==mod)return false;if(esp&&!(t.especialidades||[]).includes(esp)&&t.esp!==esp)return false;if(q){const f=[t.nome,t.crp,t.esp,(t.especialidades||[]).join(' '),t.bio,t.modalidade].join(' ').toLowerCase();if(!f.includes(q))return false;}return true;});
+  const q=(document.getElementById('t-search-q')?.value||'').toLowerCase().trim(),mod=document.getElementById('t-filter-modalidade')?.value||'',esp=document.getElementById('t-filter-esp')?.value||'',catF=document.getElementById('t-filter-cat')?.value||'',sort=document.getElementById('t-sort')?.value||'recente';
+  let res=therapists.filter(t=>{if(tNivelFilter2!=='all'&&String(t.nivel)!==tNivelFilter2)return false;if(mod&&t.modalidade!==mod)return false;if(esp&&!(t.especialidades||[]).includes(esp)&&t.esp!==esp)return false;if(catF&&!Object.prototype.hasOwnProperty.call(normalizeCategorias(t.categorias),catF))return false;if(q){const f=[t.nome,t.crp,t.esp,(t.especialidades||[]).join(' '),t.bio,t.modalidade].join(' ').toLowerCase();if(!f.includes(q))return false;}return true;});
   res=[...res].sort((a,b)=>{if(sort==='az')return a.nome.localeCompare(b.nome,'pt-BR');if(sort==='za')return b.nome.localeCompare(a.nome,'pt-BR');if(sort==='nivel-asc')return Number(a.nivel)-Number(b.nivel);if(sort==='nivel-desc')return Number(b.nivel)-Number(a.nivel);if(sort==='pacientes')return patients.filter(p=>p.therapistId===b.id&&p.status!=='finalizado'&&p.status!=='inativo').length-patients.filter(p=>p.therapistId===a.id&&p.status!=='finalizado'&&p.status!=='inativo').length;return new Date(b.created_at)-new Date(a.created_at);});
   const cnt=document.getElementById('t-results-count');if(cnt)cnt.textContent=res.length===therapists.length?'Mostrando todos ('+therapists.length+')':res.length+' de '+therapists.length;
   renderTherapistGrid(res);
 }
-function clearTherapistFilters(){['t-search-q','t-filter-modalidade','t-filter-esp'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});const ss=document.getElementById('t-sort');if(ss)ss.value='recente';tNivelFilter2='all';['all','1','2','3'].forEach(x=>{const c=document.getElementById('t-chip-'+x);if(c){c.className='filter-chip';if(x==='all')c.classList.add('active-all');}});applyTherapistFilters();}
+function clearTherapistFilters(){['t-search-q','t-filter-modalidade','t-filter-esp','t-filter-cat'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});const ss=document.getElementById('t-sort');if(ss)ss.value='recente';tNivelFilter2='all';['all','1','2','3'].forEach(x=>{const c=document.getElementById('t-chip-'+x);if(c){c.className='filter-chip';if(x==='all')c.classList.add('active-all');}});applyTherapistFilters();}
 
 async function toggleBloquearTerapeuta(id){
   const t=therapists.find(x=>x.id===id);
@@ -1901,6 +1979,8 @@ function renderTherapistGrid(list){
     const qtd=patients.filter(p=>p.therapistId===t.id&&p.status!=='finalizado'&&p.status!=='inativo').length;
     const bio=t.bio?'<div style="font-size:.76rem;color:var(--text2);line-height:1.5;padding:10px 12px;background:var(--bg2);border-radius:8px;margin-bottom:10px;border:1px solid var(--border)">'+t.bio+'</div>':'';
     const esps=(t.especialidades&&t.especialidades.length)?'<div style="display:flex;flex-wrap:wrap;gap:5px;margin:10px 0">'+t.especialidades.map(e=>'<span style="font-size:.65rem;padding:2px 8px;border-radius:50px;background:rgba(45,212,170,.08);border:1px solid rgba(45,212,170,.2);color:var(--teal)">'+e+'</span>').join('')+'</div>':'';
+    const _cats=normalizeCategorias(t.categorias);
+    const cats=Object.keys(_cats).length?'<div style="margin:0 0 10px;display:flex;flex-direction:column;gap:4px">'+Object.keys(_cats).map(c=>'<div style="font-size:.68rem;color:var(--text3);line-height:1.4"><b style="color:var(--blue)">'+catEsc(c)+'</b>'+(_cats[c].length?' · '+_cats[c].map(catEsc).join(', '):'')+'</div>').join('')+'</div>':'';
     const mod=t.modalidade?'<div class="cred-row"><span class="cred-label">Modalidade</span><span class="cred-val">'+t.modalidade+'</span></div>':'';
     const exp=t.experiencia?'<div class="cred-row"><span class="cred-label">Experiência</span><span class="cred-val">'+t.experiencia+' anos</span></div>':'';
     // Disponibilidade
@@ -1919,7 +1999,7 @@ function renderTherapistGrid(list){
         +(t.disp_obs?'<div style="margin-top:6px;font-size:.68rem;color:var(--text3);font-style:italic">'+t.disp_obs+'</div>':'')
         +'</div></div>'
       :'<div style="margin:10px 0;padding:8px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;font-size:.72rem;color:var(--text3)">Sem disponibilidade cadastrada</div>';
-    return'<div class="therapist-card" style="'+(t.bloqueado?'opacity:.5;filter:grayscale(.6);border:2px dashed var(--red);position:relative':'')+'">'+(t.bloqueado?'<div style="position:absolute;top:0;left:0;right:0;background:rgba(220,38,38,.1);border-radius:10px 10px 0 0;padding:5px 12px;display:flex;align-items:center;gap:6px;font-size:.72rem;font-weight:700;color:var(--red);border-bottom:1px dashed var(--red)">🔒 TERAPEUTA BLOQUEADO</div><div style="margin-top:28px">':'<div>')+'<div class="tc-header">'+tAvatarHTML(t,44,10)+'<div class="t-info"><h4>'+t.nome+'</h4><p>'+(t.esp||'Terapeuta')+(t.crp?' · CRP '+t.crp:'')+'</p></div><div style="margin-left:auto"><span class="lv lv'+t.nivel+'">Nível '+t.nivel+'</span></div></div>'+bio+'<div class="tc-credentials"><div class="cred-row"><span class="cred-label">Usuário</span><span class="cred-val">'+t.username+'</span></div><div class="cred-row"><span class="cred-label">Senha</span><span class="cred-val">••••••••</span><button class="cred-edit" onclick="editTherapist(\''+t.id+'\')">Editar</button></div><div class="cred-row"><span class="cred-label">Pacientes</span><span class="cred-val">'+qtd+' atribuído(s)</span></div>'+mod+exp+'</div>'+esps+dispSection+'<div class="tc-footer">'+(t.bloqueado?'<span class="tc-badge" style="background:#fee2e2;color:#b91c1c">🔒 Bloqueado</span>':'<span class="tc-badge">✅ Ativo</span>')+'<div style="display:flex;gap:8px;margin-left:auto"><button class="link-btn" style="color:'+(t.bloqueado?'#16a34a':'#b45309')+'" onclick="toggleBloquearTerapeuta(\''+t.id+'\')">'+(t.bloqueado?'🔓 Desbloquear':'🔒 Bloquear')+'</button><button class="link-btn" style="color:var(--red)" onclick="removeTherapist(\''+t.id+'\')">Remover</button></div></div></div></div>';
+    return'<div class="therapist-card" style="'+(t.bloqueado?'opacity:.5;filter:grayscale(.6);border:2px dashed var(--red);position:relative':'')+'">'+(t.bloqueado?'<div style="position:absolute;top:0;left:0;right:0;background:rgba(220,38,38,.1);border-radius:10px 10px 0 0;padding:5px 12px;display:flex;align-items:center;gap:6px;font-size:.72rem;font-weight:700;color:var(--red);border-bottom:1px dashed var(--red)">🔒 TERAPEUTA BLOQUEADO</div><div style="margin-top:28px">':'<div>')+'<div class="tc-header">'+tAvatarHTML(t,44,10)+'<div class="t-info"><h4>'+t.nome+'</h4><p>'+(t.esp||'Terapeuta')+(t.crp?' · CRP '+t.crp:'')+'</p></div><div style="margin-left:auto"><span class="lv lv'+t.nivel+'">Nível '+t.nivel+'</span></div></div>'+bio+'<div class="tc-credentials"><div class="cred-row"><span class="cred-label">Usuário</span><span class="cred-val">'+t.username+'</span></div><div class="cred-row"><span class="cred-label">Senha</span><span class="cred-val">••••••••</span><button class="cred-edit" onclick="editTherapist(\''+t.id+'\')">Editar</button></div><div class="cred-row"><span class="cred-label">Pacientes</span><span class="cred-val">'+qtd+' atribuído(s)</span></div>'+mod+exp+'</div>'+esps+cats+dispSection+'<div class="tc-footer">'+(t.bloqueado?'<span class="tc-badge" style="background:#fee2e2;color:#b91c1c">🔒 Bloqueado</span>':'<span class="tc-badge">✅ Ativo</span>')+'<div style="display:flex;gap:8px;margin-left:auto"><button class="link-btn" style="color:'+(t.bloqueado?'#16a34a':'#b45309')+'" onclick="toggleBloquearTerapeuta(\''+t.id+'\')">'+(t.bloqueado?'🔓 Desbloquear':'🔒 Bloquear')+'</button><button class="link-btn" style="color:var(--red)" onclick="removeTherapist(\''+t.id+'\')">Remover</button></div></div></div></div>';
   }).join('');
 }
 function renderTherapistAdmin(){populateEspFilter();clearTherapistFilters();}
