@@ -1729,12 +1729,14 @@ function updateTherapistHeader(){
 // ══ CATEGORIAS / SUBCATEGORIAS ══
 // Modelo: t.categorias = ['Infantil', ...] e t.subcategorias = ['Luto e perdas', ...] (duas listas independentes).
 // Compatível com o formato antigo { 'Infantil': ['Luto e perdas'] } (convertido ao carregar).
-const CATEGORIAS=['Infantil','Atendimento de mulheres','Atendimento de homens','Atendimento de casal'];
+const CATEGORIAS=['Atendimento infantil','Atendimento de mulheres','Atendimento de homens','Atendimento de casal'];
+const _CAT_LEGACY={'Infantil':'Atendimento infantil'};
 const SUBCAT_PADRAO=['Depressão e ansiedade','Luto e perdas','Dependência química','Trauma','Autoestima','Conflitos familiares','Dependência emocional','Propósito e identidade','Abuso'];
 function _catParse(v){if(typeof v==='string'&&v.trim()){try{return JSON.parse(v);}catch(e){return null;}}return v;}
 function normalizeCategorias(v){
   v=_catParse(v);
-  const raw=Array.isArray(v)?v:(v&&typeof v==='object'?Object.keys(v):[]);
+  let raw=Array.isArray(v)?v:(v&&typeof v==='object'?Object.keys(v):[]);
+  raw=raw.map(c=>_CAT_LEGACY[c]||c);
   return CATEGORIAS.filter(c=>raw.includes(c));
 }
 function normalizeSubcategorias(v,legacy){
