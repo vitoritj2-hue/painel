@@ -1730,7 +1730,7 @@ function updateTherapistHeader(){
 // Modelo: t.categorias = ['Infantil', ...] e t.subcategorias = ['Luto e perdas', ...] (duas listas independentes).
 // Compatível com o formato antigo { 'Infantil': ['Luto e perdas'] } (convertido ao carregar).
 const CATEGORIAS=['Infantil','Atendimento de mulheres','Atendimento de homens','Atendimento de casal'];
-const SUBCAT_PADRAO=['Depressão e ansiedade','Luto e perdas','Dependência química','Trauma','Autoestima','Conflitos familiares'];
+const SUBCAT_PADRAO=['Depressão e ansiedade','Luto e perdas','Dependência química','Trauma','Autoestima','Conflitos familiares','Dependência emocional','Propósito e identidade','Abuso'];
 function _catParse(v){if(typeof v==='string'&&v.trim()){try{return JSON.parse(v);}catch(e){return null;}}return v;}
 function normalizeCategorias(v){
   v=_catParse(v);
@@ -1759,8 +1759,7 @@ function renderCategorias(t){
       const on=t.subcategorias.includes(sub),isC=!SUBCAT_PADRAO.includes(sub);
       return'<div data-act="sub" data-sub="'+catEsc(sub)+'" style="padding:7px 12px;border-radius:8px;border:1px solid '+(on?'rgba(45,212,170,.4)':'var(--border2)')+';background:'+(on?'rgba(45,212,170,.08)':'var(--bg3)')+';cursor:pointer;font-size:.8rem;color:'+(on?'var(--teal)':'var(--text2)')+';display:flex;align-items:center;gap:6px;transition:all .2s">'+catEsc(sub)+(isC?'<button type="button" data-act="rmsub" data-sub="'+catEsc(sub)+'" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:0">×</button>':'')+'</div>';
     }).join('');
-    sw.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;margin-bottom:16px">'+chips+'</div>'
-      +'<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding-top:14px;border-top:1px solid var(--border)"><input type="text" id="sub-new" maxlength="40" placeholder="Adicionar outra subcategoria..." style="flex:1;min-width:180px;background:var(--bg3);border:1px solid var(--border2);color:var(--text);border-radius:8px;padding:8px 12px;font-size:.83rem;outline:none"><button type="button" class="btn-primary" data-act="addsub" style="padding:8px 16px;font-size:.82rem">+ Adicionar</button></div>';
+    sw.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px">'+chips+'</div>';
   }
 }
 function catsBlockHTML(t){
@@ -1787,20 +1786,10 @@ function catHandleClick(ev){
     const sub=el.dataset.sub,i=t.subcategorias.indexOf(sub);if(i>=0)t.subcategorias.splice(i,1);else t.subcategorias.push(sub);
   }else if(act==='rmsub'){
     ev.stopPropagation();t.subcategorias=t.subcategorias.filter(x=>x!==el.dataset.sub);
-  }else if(act==='addsub'){
-    const inp=document.getElementById('sub-new');if(!inp)return;
-    if(catAddSub(t,inp.value))inp.value='';
   }else return;
   renderCategorias(t);
 }
-function catHandleKey(ev){
-  if(ev.key!=='Enter'||!ev.target||ev.target.id!=='sub-new')return;
-  ev.preventDefault();
-  const t=catCurrent();if(!t)return;
-  t.categorias=normalizeCategorias(t.categorias);t.subcategorias=normalizeSubcategorias(t.subcategorias);
-  if(catAddSub(t,ev.target.value)){ev.target.value='';renderCategorias(t);}
-}
-document.addEventListener('DOMContentLoaded',()=>{['categorias-wrap','subcategorias-wrap'].forEach(id=>{const w=document.getElementById(id);if(w){w.addEventListener('click',catHandleClick);w.addEventListener('keydown',catHandleKey);}});});
+document.addEventListener('DOMContentLoaded',()=>{['categorias-wrap','subcategorias-wrap'].forEach(id=>{const w=document.getElementById(id);if(w)w.addEventListener('click',catHandleClick);});});
 function initPerfil(){
   if(!currentTherapist)return;
   const t=therapists.find(x=>x.id===currentTherapist.id)||currentTherapist;
