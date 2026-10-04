@@ -844,7 +844,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
       <div class="fg"><label>Especialidade</label><input type="text" id="tf-esp" placeholder="Ex: TCC, Infantil..."></div>
       <div class="fg"><label>Nível</label><select id="tf-nivel"><option value="1">Nível 1</option><option value="2">Nível 2</option><option value="3" selected>Nível 3</option></select></div>
       <div class="fg"><label>Usuário (login)</label><input type="text" id="tf-user"></div>
-      <div class="fg"><label>Senha</label><input type="password" id="tf-pass"></div>
+      <div class="fg"><label id="tf-pass-label">Senha</label><input type="password" id="tf-pass" placeholder="Mínimo 6 caracteres"><div id="tf-pass-hint" style="font-size:.68rem;color:var(--text3);margin-top:4px;display:none">Deixe em branco para manter a senha atual.</div></div>
     </div>
     <p id="tf-erro" style="display:none;color:var(--red);font-size:.74rem;margin-bottom:10px"></p>
     <div style="display:flex;gap:10px"><button class="btn-secondary" style="flex:1" onclick="closeOverlay('modal-t-form')">Cancelar</button><button class="btn-primary" style="flex:1" onclick="saveTherapist()">Salvar</button></div>
@@ -2001,18 +2001,20 @@ function renderEquipe(){
 }
 
 // ══ GESTÃO TERAPEUTAS ══
-function openNewTherapist(){document.getElementById('t-form-title').textContent='Novo Terapeuta';document.getElementById('t-form-id').value='';['tf-nome','tf-email','tf-crp','tf-esp','tf-user','tf-pass'].forEach(id=>document.getElementById(id).value='');document.getElementById('tf-nivel').value='3';document.getElementById('tf-erro').style.display='none';document.getElementById('modal-t-form').classList.add('open');setTimeout(()=>document.getElementById('tf-nome').focus(),100);}
-function editTherapist(id){const t=therapists.find(x=>x.id===id);if(!t)return;document.getElementById('t-form-title').textContent='Editar Terapeuta';document.getElementById('t-form-id').value=t.id;document.getElementById('tf-nome').value=t.nome;document.getElementById('tf-email').value=t.email||'';document.getElementById('tf-crp').value=t.crp||'';document.getElementById('tf-esp').value=t.esp||'';document.getElementById('tf-nivel').value=t.nivel;document.getElementById('tf-user').value=t.username;document.getElementById('tf-pass').value=t.password||'';document.getElementById('tf-erro').style.display='none';document.getElementById('modal-t-form').classList.add('open');}
+function openNewTherapist(){document.getElementById('t-form-title').textContent='Novo Terapeuta';document.getElementById('tf-pass-label').textContent='Senha';document.getElementById('tf-pass-hint').style.display='none';document.getElementById('t-form-id').value='';['tf-nome','tf-email','tf-crp','tf-esp','tf-user','tf-pass'].forEach(id=>document.getElementById(id).value='');document.getElementById('tf-nivel').value='3';document.getElementById('tf-erro').style.display='none';document.getElementById('modal-t-form').classList.add('open');setTimeout(()=>document.getElementById('tf-nome').focus(),100);}
+function editTherapist(id){const t=therapists.find(x=>x.id===id);if(!t)return;document.getElementById('t-form-title').textContent='Editar Terapeuta';document.getElementById('t-form-id').value=t.id;document.getElementById('tf-nome').value=t.nome;document.getElementById('tf-email').value=t.email||'';document.getElementById('tf-crp').value=t.crp||'';document.getElementById('tf-esp').value=t.esp||'';document.getElementById('tf-nivel').value=t.nivel;document.getElementById('tf-user').value=t.username;document.getElementById('tf-pass').value='';document.getElementById('tf-pass-label').textContent='Nova senha (opcional)';document.getElementById('tf-pass-hint').style.display='block';document.getElementById('tf-erro').style.display='none';document.getElementById('modal-t-form').classList.add('open');}
 async function saveTherapist(){
   const nome=document.getElementById('tf-nome').value.trim(),user=document.getElementById('tf-user').value.trim().toLowerCase(),pass=document.getElementById('tf-pass').value,errEl=document.getElementById('tf-erro');
-  if(!nome||!user||!pass){errEl.textContent='Preencha nome, usuário e senha.';errEl.style.display='block';return;}
   const existId=document.getElementById('t-form-id').value;
+  if(!nome||!user||(!existId&&!pass)){errEl.textContent='Preencha nome, usuário'+(existId?'.':' e senha.');errEl.style.display='block';return;}
+  if(pass&&pass.length<6){errEl.textContent='A senha precisa ter pelo menos 6 caracteres.';errEl.style.display='block';return;}
   if(therapists.find(x=>x.username.toLowerCase()===user&&x.id!==existId)){errEl.textContent='Usuário já existe.';errEl.style.display='block';return;}
-  const tData={id:existId||uid(),nome,email:document.getElementById('tf-email').value,crp:document.getElementById('tf-crp').value,esp:document.getElementById('tf-esp').value,nivel:document.getElementById('tf-nivel').value,username:user,password:pass};
+  const tData={id:existId||uid(),nome,email:document.getElementById('tf-email').value,crp:document.getElementById('tf-crp').value,esp:document.getElementById('tf-esp').value,nivel:document.getElementById('tf-nivel').value,username:user};
+  if(pass)tData.password=pass; // em branco ao editar = mantém a senha atual (o backend só atualiza colunas presentes no payload)
   await dbUpsert('terapeutas',tData);
   if(existId){const idx=therapists.findIndex(x=>x.id===existId);if(idx>=0)therapists[idx]={...therapists[idx],...tData};}
   else{therapists.push(tData);}
-  closeOverlay('modal-t-form');renderTherapistAdmin();updateMetrics();showToast('Terapeuta salvo!');
+  closeOverlay('modal-t-form');renderTherapistAdmin();updateMetrics();showToast(pass&&existId?'Terapeuta salvo! Nova senha definida.':'Terapeuta salvo!');
 }
 async function removeTherapist(id){if(!confirm('Remover este terapeuta?'))return;await dbDelete('terapeutas',id);therapists=therapists.filter(x=>x.id!==id);patients.filter(p=>p.therapistId===id).forEach(async p=>{p.therapistId=null;await dbUpdate('fichas_triagem',p.id,{therapistId:null});});renderTherapistAdmin();updateMetrics();showToast('Removido.');}
 
