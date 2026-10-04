@@ -2576,7 +2576,11 @@ async function addAppointment(){
   if(!pid){showToast('Selecione um paciente!');return;}if(!ds){showToast('Selecione um dia!');return;}
   const res=await dbInsert('agendamentos',{id:uid(),patientId:pid,date:ds,time,mode,obs});
   if(!res)return;appointments.push(res);
-  const _f=findFicha(pid);if(_f&&(_f.rec.sessoes||0)<6){const p=_f.rec;p.sessoes=(p.sessoes||0)+1;if(p.sessoes>=1&&p.status==='espera')p.status='andamento';if(p.sessoes>=6&&p.status!=='finalizado'&&p.status!=='inativo')p.status='finalizado';await dbUpdate(_f.table,p.id,{sessoes:p.sessoes,status:p.status});}
+  // Agendar uma sessão no calendário NÃO conta como sessão realizada — isso é controlado manualmente
+  // pelo terapeuta nos botões +/- do card do paciente (changeSessoes). Antes, esse bloco incrementava
+  // "sessoes" aqui também, o que finalizava o paciente sozinho ao simplesmente marcar 6 sessões futuras
+  // na agenda (e remover o compromisso depois não desfazia a contagem).
+  const _f=findFicha(pid);if(_f&&_f.rec.status==='espera'){const p=_f.rec;p.status='andamento';await dbUpdate(_f.table,p.id,{status:p.status});}
   document.getElementById('appt-obs').value='';updateMetrics();buildCal('t');showDayAgenda('t',ds);buildUpcoming('t');showToast('Sessão agendada!');
 }
 async function deleteAppointment(aid,ds){await dbDelete('agendamentos',aid);appointments=appointments.filter(a=>a.id!==aid);updateMetrics();buildCal('t');showDayAgenda('t',ds);buildUpcoming('t');showToast('Removido.');}
