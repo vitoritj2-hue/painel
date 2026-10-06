@@ -1360,8 +1360,9 @@ async function confirmarLoginT(){
   if(t.bloqueado)showBlockedBanner();
   goToScreen('screen-therapist');
   requestNotifPermission().then(granted=>{
-    if(granted)startNotifPolling();
+    if(granted){showToast('🔔 Notificações ativadas!');startNotifPolling();}
     else showToast('Ative as notificações para receber alertas de novos pacientes!');
+    checkNotifBanner('t');
   });
 }
 function logoutTherapist(){hideBlockedBanner();currentTherapist=null;AUTH_TOKEN=null;try{clearSavedSession();}catch(e){}try{stopNotifPolling();}catch(e){}goHome();}
