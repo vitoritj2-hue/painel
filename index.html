@@ -467,12 +467,11 @@ tr:hover td{background:rgba(255,255,255,.015)}
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
             <select class="filter-select" id="mapa-f-tipo" onchange="renderMapaPacientes()"><option value="">Todos os tipos</option><option value="Adulto">Adulto</option><option value="Infantil">Infantil</option><option value="Casal">Casal</option></select>
             <select class="filter-select" id="mapa-f-status" onchange="renderMapaPacientes()"><option value="">Todos os status</option><option value="espera">Em espera</option><option value="andamento">Em andamento</option><option value="pausado">Pausado</option><option value="finalizado">Finalizado</option><option value="inativo">Inativo</option></select>
-            <button class="btn-secondary" style="font-size:.76rem;padding:6px 14px" onclick="exportMapaCSV()" title="Resumo por estado e cidade, sem dados pessoais">Resumo (CSV)</button>
             <button class="btn-primary" style="font-size:.76rem;padding:6px 14px" onclick="exportMapaXLSX()" title="Nome completo, CPF, estado, cidade e sessões">Planilha Excel (com CPF)</button>
           </div>
         </div>
         <div id="mapa-corpo" style="padding:16px 18px"></div>
-        <div style="padding:0 18px 14px;font-size:.7rem;color:var(--text3)">Ao abrir uma cidade aparecem os nomes dos pacientes, e a planilha Excel traz nome completo e CPF: são dados pessoais sensíveis (LGPD). O resumo em CSV é agregado, sem dados pessoais. Cada casal conta como 1 atendimento. Malha dos estados: IBGE.</div>
+        <div style="padding:0 18px 14px;font-size:.7rem;color:var(--text3)">Ao abrir uma cidade aparecem os nomes dos pacientes, e a planilha Excel traz nome completo e CPF: são dados pessoais sensíveis (LGPD). Cada casal conta como 1 atendimento. Malha dos estados: IBGE.</div>
       </div>
       <div class="search-bar">
         <div class="search-row">
@@ -2364,22 +2363,6 @@ function exportMapaXLSX(f){
   const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;
   a.download='pacientes_'+(f?rotulo.replace(/[\\\/:*?"<>|]/g,'').replace(/\s*-\s*/,'_').trim().replace(/\s+/g,'_')+'_':'')+new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')+'.xlsx';a.click();URL.revokeObjectURL(url);
   showToast('Planilha exportada!');
-}
-function exportMapaCSV(){
-  const ag=_mapaAgregar(_mapaRegistros());
-  if(!ag.total){showToast('Nada para exportar.');return;}
-  const q=v=>{let t=String(v);if(/^[=+\-@\t\r]/.test(t))t="'"+t;return '"'+t.replace(/"/g,'""')+'"';};   // evita fórmulas no Excel
-  const rows=[['Estado','Sigla','Cidade','Atendimentos']];
-  Object.keys(ag.por).sort((a,b)=>ag.por[b].n-ag.por[a].n||a.localeCompare(b)).forEach(uf=>{
-    Object.values(ag.por[uf].cid).sort((a,b)=>b.n-a.n||a.nome.localeCompare(b.nome,'pt-BR')).forEach(c=>rows.push([UF_NOMES[uf],uf,c.nome,c.n]));
-  });
-  if(ag.sem)rows.push(['Sem localização informada','','',ag.sem]);
-  rows.push(['TOTAL','','',ag.total]);
-  const csv=rows.map(r=>r.map(q).join(';')).join('\n');
-  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
-  const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;
-  a.download='pacientes_por_estado_'+new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')+'.csv';a.click();URL.revokeObjectURL(url);
-  showToast('CSV exportado!');
 }
 
 function updateMetrics(){
