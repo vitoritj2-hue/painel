@@ -2275,7 +2275,7 @@ function renderMapaPacientes(){
   let det='<div style="margin-top:12px;padding:10px 12px;border:1px dashed var(--border2);border-radius:10px;font-size:.78rem;color:var(--text3)">Clique em um estado no mapa ou na lista para ver as cidades.</div>';
   if(_mapaUF&&ag.por[_mapaUF]){
     const cs=Object.entries(ag.por[_mapaUF].cid).map(([k,c])=>Object.assign({k},c)).sort((a,b)=>b.n-a.n||a.nome.localeCompare(b.nome,'pt-BR'));
-    det='<div style="margin-top:12px;padding:10px 12px;border:1px solid var(--border2);border-radius:10px"><div style="font-size:.82rem;font-weight:700;margin-bottom:2px">Cidades — '+UF_NOMES[_mapaUF]+'</div><div style="font-size:.68rem;color:var(--text3);margin-bottom:6px">Clique na cidade para ver os pacientes · ⬇ Excel baixa a planilha só dela</div><div style="max-height:340px;overflow-y:auto">'
+    det='<div style="margin-top:12px;padding:10px 12px;border:1px solid var(--border2);border-radius:10px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:2px"><span style="font-size:.82rem;font-weight:700">Cidades — '+UF_NOMES[_mapaUF]+'</span><button type="button" title="Baixar a planilha de todos os pacientes deste estado" onclick="exportMapaXLSX({uf:_mapaUF})" style="background:none;border:1px solid var(--border2);color:var(--blue);border-radius:50px;padding:2px 10px;font-size:.7rem;cursor:pointer">⬇ Excel do estado</button></div><div style="font-size:.68rem;color:var(--text3);margin-bottom:6px">Clique na cidade para ver os pacientes · ⬇ Excel baixa a planilha só dela</div><div style="max-height:340px;overflow-y:auto">'
       +cs.map(c=>{
         const aberta=_mapaCidAberta.has(_mapaUF+'|'+c.k);
         let h='<div><div data-k="'+_mapaEsc(c.k)+'" onclick="alternarCidadeMapa(this.dataset.k)" style="display:flex;justify-content:space-between;gap:8px;font-size:.78rem;padding:6px 2px;cursor:pointer;border-bottom:1px solid var(--border)"><span>'+(aberta?'▾':'▸')+' '+_mapaEsc(c.nome)+'</span><span style="display:flex;align-items:center;gap:10px"><button type="button" title="Baixar a planilha só desta cidade" onclick="event.stopPropagation();exportMapaXLSX({uf:_mapaUF,k:this.closest(\'[data-k]\').dataset.k})" style="background:none;border:1px solid var(--border2);color:var(--blue);border-radius:50px;padding:1px 9px;font-size:.68rem;cursor:pointer">⬇ Excel</button><strong>'+c.n+'</strong></span></div>';
@@ -2336,11 +2336,12 @@ function _xlsxCriar(sheets){
 }
 function _mapaFmtCPF(c){const d=String(c||'').replace(/\D/g,'');return d.length===11?d.slice(0,3)+'.'+d.slice(3,6)+'.'+d.slice(6,9)+'-'+d.slice(9):String(c||'').trim();}
 function exportMapaXLSX(f){
-  // f = {uf,k}: exporta só uma cidade; sem f, exporta tudo o que está nos filtros do cartão
+  // f = {uf,k}: só uma cidade · f = {uf}: só um estado · sem f: tudo o que está nos filtros do cartão
   let regs=_mapaRegistros();
-  if(f)regs=regs.filter(r=>r.uf===f.uf&&_mapaNorm(r.cidade)===f.k);
+  const porCidade=!!(f&&f.k!==undefined);
+  if(f)regs=regs.filter(r=>r.uf===f.uf&&(!porCidade||_mapaNorm(r.cidade)===f.k));
   if(!regs.length){showToast('Nada para exportar.');return;}
-  const ag0=_mapaAgregar(regs),g0=f&&ag0.por[f.uf]?ag0.por[f.uf].cid[f.k]:null,rotulo=f?((g0?g0.nome:'Cidade')+' - '+f.uf):'';
+  const ag0=_mapaAgregar(regs),g0=porCidade&&ag0.por[f.uf]?ag0.por[f.uf].cid[f.k]:null,rotulo=!f?'':porCidade?((g0?g0.nome:'Cidade')+' - '+f.uf):(UF_NOMES[f.uf]+' - '+f.uf);
   if(!confirm((f?'Planilha de '+rotulo+'.\n\n':'')+'Esta planilha contém NOME COMPLETO e CPF dos pacientes (dados pessoais sensíveis).\nGuarde em local seguro e compartilhe somente com quem tiver autorização.\n\nBaixar a planilha?'))return;
   const L=(a,b)=>String(a).localeCompare(String(b),'pt-BR');
   const linhas=[],ag=_mapaAgregar(regs);
@@ -2357,7 +2358,7 @@ function exportMapaXLSX(f){
   if(ag.sem)resumo.push(['Não informado','',ag.sem]);
   resumo.push(['TOTAL','',ag.total]);
   const abas=[{nome:'Pacientes',larguras:[46,17,22,30,24],linhas:[['Nome completo','CPF','Estado','Cidade','Sessões realizadas'],...linhas]}];
-  if(!f)abas.push({nome:'Resumo por estado',larguras:[26,32,20],linhas:resumo});
+  if(!porCidade)abas.push({nome:f?'Resumo por cidade':'Resumo por estado',larguras:[26,32,20],linhas:resumo});
   const bytes=_xlsxCriar(abas);
   const blob=new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
   const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;
