@@ -443,6 +443,7 @@ tr:hover td{background:rgba(255,255,255,.015)}
 
     <div class="page active" id="page-admin-dashboard">
       <div class="page-title">Dashboard</div>
+      <div id="alerta-risco"></div>
       <div class="reset-banner"><span><span class="sync-badge">● Neon</span></span><div style="display:flex;gap:8px"><button class="btn-secondary" style="font-size:.76rem;padding:6px 14px" onclick="refreshAdmin()">↻ Sincronizar</button></div></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
         <!-- coluna esquerda: volumes -->
@@ -1114,7 +1115,7 @@ function mapPatient(r){
   let sintomas=[];try{sintomas=typeof r.sintomas==='string'?JSON.parse(r.sintomas):(r.sintomas||[]);}catch(e){sintomas=[];}
   let devolutivas={};try{devolutivas=typeof r.devolutivas==='string'?JSON.parse(r.devolutivas):(r.devolutivas||{});}catch(e){devolutivas={};}
   const sm={'pendente':'espera','obs':'espera','imprevisto':'pausado','espera':'espera','andamento':'andamento','pausado':'pausado','finalizado':'finalizado','inativo':'inativo'};
-  return{id:r.id,tipo:r.tipo||'Adulto',nome:r.nome||'—',nasc:r.nasc||'',cpf:r.cpf||'',tel:r.tel||'',email:r.email||'',sexo:r.sexo||'',ecivil:r.ecivil||'',cidade:r.cidade||'',estado:r.estado||'',queixa:r.queixa||'',terapia:r.terapia||'',med:r.med||'',sintomas,religiao:r.religiao||'',renda:r.renda||'',auxilio:r.auxilio||'',motivacao:r.motivacao||'',expectativa:r.expectativa||'',dias:r.dias||'',periodo:r.periodo||'',preferenciaT:r.preferenciaT||'',horarioPreferido:r.horarioPreferido||'',escola:r.escola||'',resp:r.resp||'',parent:r.parent||'',hist:r.hist||'',reside:r.reside||'',data:r.created_at?new Date(r.created_at).toLocaleDateString('pt-BR'):'',status:sm[r.status]||'andamento',sessoes:r.sessoes||0,devolutiva:r.devolutiva||'',obs:r.obs||'',therapistId:r.therapistId||null,devolutivas,assinatura_consentimento:r.assinatura_consentimento||null};
+  return{id:r.id,tipo:r.tipo||'Adulto',nome:r.nome||'—',nasc:r.nasc||'',cpf:r.cpf||'',tel:r.tel||'',email:r.email||'',sexo:r.sexo||'',ecivil:r.ecivil||'',cidade:r.cidade||'',estado:r.estado||'',queixa:r.queixa||'',terapia:r.terapia||'',med:r.med||'',sintomas,religiao:r.religiao||'',renda:r.renda||'',auxilio:r.auxilio||'',motivacao:r.motivacao||'',expectativa:r.expectativa||'',dias:r.dias||'',periodo:r.periodo||'',preferenciaT:r.preferenciaT||'',horarioPreferido:r.horarioPreferido||'',escola:r.escola||'',resp:r.resp||'',parent:r.parent||'',hist:r.hist||'',reside:r.reside||'',data:r.created_at?new Date(r.created_at).toLocaleDateString('pt-BR'):'',status:sm[r.status]||'andamento',sessoes:r.sessoes||0,devolutiva:r.devolutiva||'',obs:r.obs||'',therapistId:r.therapistId||null,devolutivas,alertaVisto:r.alerta_visto_em||'',assinatura_consentimento:r.assinatura_consentimento||null};
 }
 
 let _patientsPage=0,_hasMorePatients=false;
@@ -1160,6 +1161,7 @@ function startAdminNotifPolling(){
             _knownFichasIds.add(row.id);
             const p = mapPatient(row);
             patients.unshift(p);
+            _riscoAvisarNova(p.nome,_riscoPaciente(p));
             sendDeviceNotif('📋 Nova ficha!', p.nome+' ('+p.tipo+') enviou uma ficha.', '/icons/icon-192.png');
             playNotifSound('ficha');
             addAdminNotification('triagem','ni-green','Nova ficha: '+p.nome, p.tipo+' · '+p.data);
@@ -1174,6 +1176,7 @@ function startAdminNotifPolling(){
           if(!_knownCasaisIds.has(c.id)){
             _knownCasaisIds.add(c.id);
             currentCasais.unshift(c);
+            _riscoAvisarNova(c.p1_nome+' & '+c.p2_nome,_riscoCasal(c));
             sendDeviceNotif('💑 Nova ficha de casal!', c.p1_nome+' & '+c.p2_nome+' enviaram.', '/icons/icon-192.png');
             playNotifSound('ficha');
             addAdminNotification('casal','ni-green','Nova ficha de casal', c.p1_nome+' & '+c.p2_nome);
@@ -2365,6 +2368,54 @@ function exportMapaXLSX(f){
   showToast('Planilha exportada!');
 }
 
+// ══ ALERTA DE RISCO (suicídio, automutilação, abuso, violência) ══
+const _RISCO_CRITICO=['suicid','me matar','matar-me','tirar minha vida','tirar a propria vida','acabar com minha vida','acabar com tudo','automutil','me cortar','quero morrer','vontade de morrer','pensando em morrer','nao quero viver','nao quero mais viver','desistir de viver','desistir da vida'];
+const _RISCO_GRAVE=['abuso','abusad','estupr','violencia sexual','violentad','assedio','molest','incesto','violencia domestica','agressao','agredid','espanc','maus-tratos','maus tratos'];
+const _riscoNorm=s=>String(s==null?'':s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+const _riscoEsc=r=>r.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+const _riscoTem=(t,r)=>new RegExp('(^|[^a-z])'+_riscoEsc(r)).test(t);
+function _riscoAvaliar(campos){
+  const orig=campos.filter(Boolean).join(' | '),txt=_riscoNorm(orig);
+  const crit=_RISCO_CRITICO.filter(t=>_riscoTem(txt,t)),grave=_RISCO_GRAVE.filter(t=>_riscoTem(txt,t));
+  if(!crit.length&&!grave.length)return null;
+  const m=new RegExp('(^|[^a-z])'+_riscoEsc(crit[0]||grave[0])).exec(txt);
+  let trecho='';
+  if(m){const i=m.index+m[1].length;trecho=orig.slice(Math.max(0,i-50),i+80).trim();if(i>50)trecho='…'+trecho;if(i+80<orig.length)trecho+='…';}
+  return {nivel:crit.length?'critico':'grave',termos:[...crit,...grave],trecho};
+}
+const _riscoPaciente=p=>_riscoAvaliar([p.queixa,p.motivacao,p.expectativa,p.hist]);
+const _riscoCasal=c=>_riscoAvaliar([c.motivacao,c.expectativas,c.conflito_outro]);
+function _riscoBadge(r){return r?' <span title="'+(r.nivel==='critico'?'Sinais de risco de vida na ficha':'Tema sensível na ficha')+'" style="font-size:.8rem">'+(r.nivel==='critico'?'🚨':'⚠️')+'</span>':'';}
+function _riscoLista(){
+  const out=[];
+  (patients||[]).forEach(p=>{if(p.alertaVisto||p.status==='finalizado'||p.status==='inativo')return;const r=_riscoPaciente(p);if(r)out.push(Object.assign({id:p.id,nome:p.nome,tipo:p.tipo,tabela:'fichas_triagem'},r));});
+  (currentCasais||[]).forEach(c=>{if(c.alerta_visto_em)return;const st=_MAPA_SM[c.status]||c.status;if(st==='finalizado'||st==='inativo')return;const r=_riscoCasal(c);if(r)out.push(Object.assign({id:c.id,nome:[c.p1_nome,c.p2_nome].filter(Boolean).join(' & '),tipo:'Casal',tabela:'fichas_casal'},r));});
+  return out.sort((a,b)=>(a.nivel==='critico'?0:1)-(b.nivel==='critico'?0:1));
+}
+function renderAlertaRisco(){
+  const box=document.getElementById('alerta-risco');if(!box)return;
+  const l=_riscoLista();
+  if(!l.length){box.innerHTML='';return;}
+  const crit=l.filter(x=>x.nivel==='critico').length,cor=crit?'#f56565':'#f0b429';
+  box.innerHTML='<div style="margin-bottom:16px;border:1px solid '+cor+';background:'+(crit?'rgba(245,101,101,.09)':'rgba(240,180,41,.09)')+';border-radius:12px;padding:14px 16px"><div style="font-weight:700;font-size:.9rem;color:'+cor+';margin-bottom:6px">'+(crit?'🚨 ':'⚠️ ')+l.length+' paciente'+(l.length===1?'':'s')+' com sinais de risco'+(crit?' — '+crit+' de risco de vida':'')+'</div>'
+    +l.map(x=>'<div style="padding:10px 0;border-top:1px solid var(--border)"><div style="display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;justify-content:space-between"><div style="font-size:.84rem"><strong>'+_mapaEsc(x.nome)+'</strong> <span style="color:var(--text3)">· '+_mapaEsc(x.tipo)+'</span> <span style="font-size:.66rem;font-weight:700;padding:2px 8px;border-radius:50px;'+(x.nivel==='critico'?'background:rgba(245,101,101,.2);color:#f56565':'background:rgba(240,180,41,.2);color:#f0b429')+'">'+(x.nivel==='critico'?'RISCO DE VIDA':'TEMA SENSÍVEL')+'</span></div><div style="display:flex;gap:6px"><button type="button" class="btn-secondary" style="font-size:.72rem;padding:4px 12px" data-id="'+_mapaEsc(x.id)+'" data-t="'+x.tabela+'" onclick="abrirFichaAlerta(this.dataset.id,this.dataset.t)">Abrir ficha</button><button type="button" class="btn-secondary" style="font-size:.72rem;padding:4px 12px" data-id="'+_mapaEsc(x.id)+'" data-t="'+x.tabela+'" onclick="marcarAlertaVisto(this.dataset.id,this.dataset.t)">Marcar como visto</button></div></div><div style="font-size:.74rem;color:var(--text3);margin-top:4px">Termos: '+_mapaEsc(x.termos.join(', '))+(x.trecho?' · “'+_mapaEsc(x.trecho)+'”':'')+'</div></div>').join('')
+    +'<div style="font-size:.68rem;color:var(--text3);margin-top:6px">Detecção automática por palavras-chave: pode haver falsos alarmes (ex.: frases negadas) e nem todo risco é detectado. Confira sempre a ficha.</div></div>';
+}
+function abrirFichaAlerta(id,t){if(t==='fichas_casal')openFichaCasal(id);else openFicha(id);}
+async function marcarAlertaVisto(id,t){
+  const quando=new Date().toISOString();
+  const ok=await dbUpdate(t,id,{alerta_visto_em:quando});
+  if(ok===false)return;
+  if(t==='fichas_casal'){const c=currentCasais.find(x=>x.id===id);if(c)c.alerta_visto_em=quando;}
+  else{const p=patients.find(x=>x.id===id);if(p)p.alertaVisto=quando;}
+  renderAlertaRisco();
+  if(typeof applyFilters==='function')applyFilters();
+}
+function _riscoAvisarNova(nome,r){
+  if(!r)return;
+  sendDeviceNotif(r.nivel==='critico'?'🚨 Ficha com RISCO DE VIDA':'⚠️ Ficha com tema sensível',nome+' — abra o painel agora.','/icons/icon-192.png');
+  playNotifSound('ficha');
+}
 function updateMetrics(){
   document.getElementById('m-total').textContent=patients.length;
   document.getElementById('m-casais').textContent=currentCasais.length;
@@ -2379,6 +2430,7 @@ function updateMetrics(){
   const mBloc=document.getElementById('m-bloqueados');
   if(mBloc) mBloc.textContent=bloqueados.length;
   renderDashboardPending();
+  try{renderAlertaRisco();}catch(e){console.error('alerta',e);}
   try{renderMapaPacientes();}catch(e){console.error('mapa',e);}
 }
 function statusBadge(s){return{espera:'<span class="sb sb-yellow"><span class="sd sd-y"></span>⏳ Espera</span>',andamento:'<span class="sb sb-blue"><span class="sd sd-b"></span>▶️ Em andamento</span>',pausado:'<span class="sb sb-red"><span class="sd sd-r"></span>⏸️ Pausado</span>',finalizado:'<span class="sb sb-green"><span class="sd sd-g"></span>✅ Finalizado</span>',inativo:'<span class="sb" style="background:rgba(148,163,184,.12);color:#94a3b8;border:1px solid #94a3b8"><span class="sd" style="background:#94a3b8"></span>💤 Inativo</span>'}[s]||'<span class="sb sb-yellow"><span class="sd sd-y"></span>⏳ Espera</span>';}
@@ -2462,7 +2514,7 @@ function renderAdminTable(list,q){
     const statusBtns='<div style="display:flex;gap:3px;margin-top:5px;flex-wrap:wrap">'+['espera','andamento','pausado','finalizado','inativo'].map(s=>'<button class="sbt'+(p.status===s?' '+bc[s]:'')+'" title="'+(s==='espera'?'⏳ Espera':s==='andamento'?'▶️ Em andamento':s==='pausado'?'⏸️ Pausado':s==='finalizado'?'✅ Finalizado':'💤 Inativo')+'" onclick="setStatusAdmin(\''+p.id+'\',\''+s+'\')" style="flex:none;width:24px;height:24px;font-size:.62rem;padding:0">'+sl[s]+'</button>').join('')+'</div>';
     const statusCell='<div style="display:inline-flex;align-items:center;gap:6px"><div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:'+sc[p.status||'espera']+'"></div>'+statusBadge(p.status)+'</div>'+statusBtns;
     const acoes='<button class="link-btn" onclick="openFicha(\''+p.id+'\')">Ficha</button> <button class="link-btn" style="color:var(--teal)" onclick="openAssignFor(\''+p.id+'\')">Atribuir</button>';
-    return'<tr><td><strong>'+p.nome+'</strong><br><span style="font-size:.7rem;color:var(--text3)">'+p.tipo+'</span></td><td>'+(t?t.nome:'<span style="color:var(--text3);font-size:.76rem">Não atribuído</span>')+'</td><td style="min-width:80px">'+bar+'</td><td style="min-width:130px">'+statusCell+'</td><td>'+acoes+'</td></tr>';
+    return'<tr><td><strong>'+p.nome+'</strong>'+_riscoBadge(_riscoPaciente(p))+'<br><span style="font-size:.7rem;color:var(--text3)">'+p.tipo+'</span></td><td>'+(t?t.nome:'<span style="color:var(--text3);font-size:.76rem">Não atribuído</span>')+'</td><td style="min-width:80px">'+bar+'</td><td style="min-width:130px">'+statusCell+'</td><td>'+acoes+'</td></tr>';
   }).join('');
 }
 function renderFichasTable(list){
@@ -2488,7 +2540,7 @@ function renderCasaisTable(list){
     let cfList=[];try{cfList=Array.isArray(c.conflitos)?c.conflitos:(typeof c.conflitos==='string'?(JSON.parse(c.conflitos||'[]')||[]):[]);}catch(e){cfList=[];}
     const st=c.status||'espera';
     const sel='<select class="filter-select" style="width:auto;min-width:130px;font-size:.74rem" onchange="setStatusAdmin(\''+c.id+'\',this.value)">'+Object.keys(STL).map(k=>'<option value="'+k+'"'+(st===k?' selected':'')+'>'+STL[k]+'</option>').join('')+'</select>';
-    return'<tr><td><strong>'+c.p1_nome+' & '+c.p2_nome+'</strong><br><span style="font-size:.7rem;color:var(--text3)">'+(cfList.length?'Conflitos: '+cfList.slice(0,2).join(', '):'')+'</span></td><td>'+(c.tempo_juntos||'—')+'</td><td>'+data+'</td><td>'+(c.conexao_emocional||'—')+'</td><td>'+(t?t.nome:'<span style="color:var(--text3);font-size:.76rem">Não atribuído</span>')+'</td><td>'+sel+' <span style="font-size:.68rem;color:var(--text3);white-space:nowrap">'+(c.sessoes||0)+'/6</span></td><td><button class="link-btn" onclick="openFichaCasal(\''+c.id+'\')">Ver</button> <button class="link-btn" style="color:var(--teal)" onclick="openAssignForCasal(\''+c.id+'\')">Atribuir</button></td></tr>';
+    return'<tr><td><strong>'+c.p1_nome+' & '+c.p2_nome+'</strong>'+_riscoBadge(_riscoCasal(c))+'<br><span style="font-size:.7rem;color:var(--text3)">'+(cfList.length?'Conflitos: '+cfList.slice(0,2).join(', '):'')+'</span></td><td>'+(c.tempo_juntos||'—')+'</td><td>'+data+'</td><td>'+(c.conexao_emocional||'—')+'</td><td>'+(t?t.nome:'<span style="color:var(--text3);font-size:.76rem">Não atribuído</span>')+'</td><td>'+sel+' <span style="font-size:.68rem;color:var(--text3);white-space:nowrap">'+(c.sessoes||0)+'/6</span></td><td><button class="link-btn" onclick="openFichaCasal(\''+c.id+'\')">Ver</button> <button class="link-btn" style="color:var(--teal)" onclick="openAssignForCasal(\''+c.id+'\')">Atribuir</button></td></tr>';
   }).join('');
 }
 function filterCasaisTable(v){renderCasaisTable(currentCasais.filter(c=>(c.p1_nome||'').toLowerCase().includes(v.toLowerCase())||(c.p2_nome||'').toLowerCase().includes(v.toLowerCase())));}
